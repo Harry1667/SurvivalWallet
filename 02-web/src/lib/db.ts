@@ -243,3 +243,12 @@ export const getTransactions = (limit = 50): Transaction[] => {
     };
   });
 };
+
+export const clearDB = async () => {
+  if (!db) return;
+  db.run('DELETE FROM user_settings;');
+  db.run('DELETE FROM transactions;');
+  db.run('DELETE FROM fund_records;');
+  await saveDB();
+  console.log('🗑️ 資料庫已完全清空重置！');
+};

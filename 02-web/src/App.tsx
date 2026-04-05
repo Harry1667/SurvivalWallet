@@ -7,7 +7,7 @@ import { TransactionModal } from './components/TransactionModal';
 import { SettingsModal } from './components/SettingsModal';
 import { Report } from './components/Report';
 import { Details } from './components/Details';
-import { initDB, getSettings, saveSettings, addTransaction, getTransactions, addFundRecord, updateTransaction } from './lib/db';
+import { initDB, getSettings, saveSettings, addTransaction, getTransactions, addFundRecord, updateTransaction, clearDB } from './lib/db';
 import type { AppState, Category, IncomeCategory, UserSettings } from './types';
 import { AnimatePresence, motion } from 'motion/react';
 import { PiggyBank, Wallet, History as HistoryIcon, PieChart as PieChartIcon, ClipboardList } from 'lucide-react';
@@ -329,8 +329,9 @@ export default function App() {
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     localStorage.clear();
+    await clearDB();
     window.location.reload();
   };
 
