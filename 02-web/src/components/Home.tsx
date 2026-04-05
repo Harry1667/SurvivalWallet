@@ -1,0 +1,232 @@
+import React, { useMemo, useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Calendar, Plus, AlertCircle, Coffee, ShieldAlert, Settings as SettingsIcon } from 'lucide-react';
+import type { AppState, Category } from '../types';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+const CATEGORIES: { name: Category; color: string }[] = [
+  { name: '生存正餐', color: 'bg-emerald-500' },
+  { name: '快樂水/零食', color: 'bg-amber-500' },
+  { name: '生活日用', color: 'bg-blue-500' },
+  { name: '交通通勤', color: 'bg-indigo-500' },
+  { name: '娛樂社交', color: 'bg-purple-500' },
+  { name: '自我投資', color: 'bg-rose-500' },
+  { name: '其他雜項', color: 'bg-slate-500' },
+];
+
+const TITLES = [
+  { min: 0, name: '守財新手', icon: '🥉' },
+  { min: 7, name: '節流達人', icon: '🥈' },
+  { min: 21, name: '生存大師', icon: '🥇' },
+];
+
+const Toast = ({ children, colorClass }: { children: React.ReactNode, colorClass: string }) => {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!visible) return null;
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: -50, scale: 0.9 }} 
+      animate={{ opacity: 1, y: 0, scale: 1 }} 
+      exit={{ opacity: 0, scale: 0.9 }} 
+      className={cn("backdrop-blur-xl p-4 rounded-2xl flex items-center gap-4 shadow-2xl pointer-events-auto", colorClass)}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
+interface Props {
+  state: AppState;
+  onOpenRecord: () => void;
+  onOpenSettings: () => void;
+}
+
+export const Home = ({ state, onOpenRecord, onOpenSettings }: Props) => {
+  const { settings, transactions, todayAllowance, currentDailyBalance } = state;
+  
+  if (!settings) return null;
+
+  const title = useMemo(() => {
+    return [...TITLES].reverse().find(t => settings.current_streak >= t.min) || TITLES[0];
+  }, [settings.current_streak]);
+
+  const percentRemaining = currentDailyBalance / (todayAllowance || 1);
+  const status = percentRemaining <= 0 ? 'danger' : percentRemaining < 0.3 ? 'warning' : 'safe';
+
+  // Bankruptcy Risk Calc
+  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+  const remainingDays = daysInMonth - new Date().getDate() + 1;
+  const recentDays = 7;
+  const last7DaysStart = new Date();
+  last7DaysStart.setDate(last7DaysStart.getDate() - recentDays);
+  
+  const recentNormalSpend = transactions
+    .filter(t => !t.is_emergency && new Date(t.created_at) >= last7DaysStart)
+    .reduce((acc, t) => acc + t.amount, 0);
+  
+  const totalRemainingInSettings = settings.total_budget - settings.fixed_expenses - transactions.filter(t => !t.is_emergency).reduce((acc, t) => acc + t.amount, 0);
+  
+  let isBankruptcyRisk = false;
+  if (recentNormalSpend > 0) {
+    const avgDailySpend = recentNormalSpend / recentDays;
+    const daysUntilZero = totalRemainingInSettings / avgDailySpend;
+    // Warn if they will hit zero before the month ends, assuming they still have money now.
+    isBankruptcyRisk = daysUntilZero < remainingDays && totalRemainingInSettings > 0;
+  }
+
+  // Latte factor (快樂水)
+  const coffeeSpend = transactions
+    .filter(t => t.category === '快樂水/零食' && new Date(t.created_at) >= last7DaysStart)
+    .reduce((acc, t) => acc + t.amount, 0);
+
+  // Category distribution for today
+  const todayTransactions = transactions.filter(t => {
+    const today = new Date().toISOString().split('T')[0];
+    return t.created_at.split('T')[0] === today;
+  });
+
+  const categoryShares = CATEGORIES.map(cat => ({
+    ...cat,
+    amount: todayTransactions.filter(t => t.category === cat.name && !t.is_emergency).reduce((acc, t) => acc + t.amount, 0)
+  }));
+
+  return (
+    <div className={cn(
+      "flex-1 flex flex-col p-6 safe-area-inset-top transition-colors duration-700 relative",
+      status === 'safe' ? 'safe-bg' : status === 'warning' ? 'warning-bg' : 'danger-bg'
+    )}>
+      
+      {/* Floating Toasts (Top fixed) */}
+      <div className="fixed top-6 left-6 right-6 z-50 space-y-3 pointer-events-none">
+        <AnimatePresence>
+          {isBankruptcyRisk && (
+            <Toast key="bankruptcy" colorClass="bg-red-500/95 border border-red-400 text-white shadow-red-900/20">
+              <div className="p-2 bg-white/20 rounded-xl shadow-sm">
+                <AlertCircle size={20} />
+              </div>
+              <p className="text-sm font-black tracking-wide">破產預警：按花費速度，本月將提前透支！</p>
+            </Toast>
+          )}
+          {coffeeSpend > 500 && (
+            <Toast key="coffee" colorClass="bg-orange-500/95 border border-orange-400 text-white shadow-orange-900/20">
+              <div className="p-2 bg-white/20 rounded-xl shadow-sm">
+                <Coffee size={20} />
+              </div>
+              <p className="text-sm font-black tracking-wide">漏財雷達：本週快樂水已花費 ${coffeeSpend}！</p>
+            </Toast>
+          )}
+          {settings.taxed_categories.length > 0 && (
+            <Toast key="tax" colorClass="bg-slate-800/95 border border-slate-700 text-white shadow-slate-900/40">
+               <div className="p-2 bg-white/20 rounded-xl shadow-sm">
+                <ShieldAlert size={20} />
+              </div>
+              <p className="text-sm font-black tracking-wide">獻祭懲罰：昨日超支，部分分類徵收 20% 稅。</p>
+            </Toast>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Header Bar */}
+      <header className="flex justify-between items-start pt-2">
+        <div className="flex flex-col gap-2">
+          <span className="text-[11px] bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full font-black text-slate-800 shadow-lg shadow-black/5 border border-white/60 flex items-center gap-1.5 w-max">
+            <span className="text-sm drop-shadow-sm">{title.icon}</span> {title.name}
+          </span>
+          <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-1 bg-white/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/40 shadow-sm w-max">
+            <Calendar size={13} strokeWidth={3} /> 本月還剩 {remainingDays} 天
+          </span>
+        </div>
+        <button 
+          onClick={onOpenSettings}
+          className="p-3 bg-white/60 backdrop-blur-md rounded-2xl shadow-sm text-slate-600 hover:text-slate-800 border border-white/40 hover:scale-105 active:scale-95 transition-all"
+        >
+          <SettingsIcon size={20} />
+        </button>
+      </header>
+
+      {/* Hero Section */}
+      <main className="flex-1 flex flex-col items-center justify-center space-y-8 py-8 w-full max-w-sm mx-auto">
+        <div className="text-center space-y-4 w-full">
+          <p className="text-slate-600 font-black text-sm uppercase tracking-[0.25em] drop-shadow-sm">今日剩餘可用</p>
+          <motion.h1 
+            key={currentDailyBalance}
+            initial={{ scale: 0.8, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: 'spring', bounce: 0.5 }}
+            className={cn(
+              "text-8xl font-black tracking-tighter drop-shadow-sm",
+              status === 'danger' ? 'text-red-600 animate-shake' : 'text-slate-900'
+            )}
+          >
+            ${Math.floor(currentDailyBalance)}
+          </motion.h1>
+
+          {/* Today's Expense Progress */}
+          <div className="w-full h-3 bg-white/40 rounded-full overflow-hidden flex shadow-inner border border-white/50 backdrop-blur-md mt-8">
+            {categoryShares.map(cat => (
+              <motion.div 
+                key={cat.name}
+                initial={{ width: 0 }}
+                animate={{ width: `${(cat.amount / todayAllowance) * 100}%` }}
+                className={cn("h-full transition-all duration-1000 ease-out", cat.color)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="w-full flex gap-4 mt-8">
+          <button 
+            onClick={() => onOpenRecord()}
+            className="flex-1 py-5 bg-slate-900/95 backdrop-blur-xl text-white rounded-[2rem] font-black text-xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all group border border-slate-700/50"
+          >
+            <div className="p-1.5 bg-white/20 rounded-xl group-hover:rotate-90 transition-transform">
+              <Plus size={20} strokeWidth={3} />
+            </div>
+            記一筆
+          </button>
+        </div>
+      </main>
+
+      {/* Today's Transaction List */}
+      {todayTransactions.length > 0 && (
+        <section className="bg-white/70 backdrop-blur-2xl rounded-[2.5rem] mx-0 mb-0 -mx-6 -mb-6 px-6 pt-6 pb-8 shadow-[0_-15px_30px_rgba(0,0,0,0.04)] border-t border-white/50 space-y-3">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">今日花銷</p>
+          <div className="space-y-2">
+            {todayTransactions.slice(0, 4).map(t => {
+              const EMOJI: Record<string, string> = {
+                '生存正餐': '🍚', '快樂水/零食': '🦹', '生活日用': '🛍️',
+                '交通通勤': '😌', '娛樂社交': '🎮', '自我投資': '📚', '其他雜項': '📦'
+              };
+              return (
+                <div key={t.id} className="flex justify-between items-center py-2 px-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">{EMOJI[t.category] || '📦'}</span>
+                    <div>
+                      <p className="font-black text-slate-800 text-sm leading-tight">{t.item || t.category}</p>
+                      <p className="text-[10px] font-bold text-slate-400">{new Date(t.created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                  </div>
+                  <p className="font-black text-slate-700">-${t.amount}</p>
+                </div>
+              );
+            })}
+            {todayTransactions.length > 4 && (
+              <p className="text-center text-[11px] font-bold text-slate-400 pt-2">還有 {todayTransactions.length - 4} 筆...</p>
+            )}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+};
