@@ -1,12 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  X, Sparkles, Loader2, AlertTriangle,
+  X, AlertTriangle,
   Utensils, Coffee, ShoppingBag, Bus, Gamepad2, BookOpen, Package,
   DollarSign, Sword, Gift, Recycle, TrendingUp, Archive,
 } from 'lucide-react';
 import type { Category, IncomeCategory } from '../types';
-import { parseTransaction } from '../lib/gemini';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -58,13 +57,7 @@ export const TransactionModal = ({
   isOpen, onClose, onConfirm, taxedCategories,
   piggyBankSaved = 0, onWithdrawFund
 }: Props) => {
-  const [activeTab, setActiveTab] = useState<'ai' | 'manual'>('ai');
   const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
-
-  // AI mode state
-  const [aiText, setAiText] = useState('');
-  const [isParsing, setIsParsing] = useState(false);
-  const aiInputRef = useRef<HTMLInputElement>(null);
 
   // Manual mode state
   const [amount, setAmount] = useState('');
@@ -78,49 +71,18 @@ export const TransactionModal = ({
     return now.toISOString().slice(0, 16);
   });
 
-  // Auto-focus the AI input when modal opens in AI tab
-  useEffect(() => {
-    if (isOpen && activeTab === 'ai') {
-      setTimeout(() => aiInputRef.current?.focus(), 150);
-    }
-  }, [isOpen, activeTab]);
-
   // Reset when closed
   const handleClose = () => {
-    setAiText('');
     setAmount('');
     setNote('');
     setCategory(null);
     setIsEmergency(false);
     setIsEmergencyConfirm(false);
-    setActiveTab('ai');
     setTransactionType('expense');
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     setRecordTime(now.toISOString().slice(0, 16));
     onClose();
-  };
-
-  // ── AI Submit ───────────────────────────────────────────────────────────────
-  const handleAiSubmit = async () => {
-    if (!aiText.trim()) return;
-    setIsParsing(true);
-    console.log('✨ 送出 AI 解析:', aiText);
-    const result = await parseTransaction(aiText);
-    setIsParsing(false);
-
-    if (result && result.amount > 0) {
-      onConfirm({
-        amount: result.amount,
-        category: result.category,
-        isEmergency: false,
-        item: result.item,
-        transaction_type: result.transaction_type,
-      });
-      handleClose();
-    } else {
-      alert('AI 無法解析，請改用手動輸入或修改描述。');
-    }
   };
 
   // ── Manual Submit ───────────────────────────────────────────────────────────
@@ -134,7 +96,7 @@ export const TransactionModal = ({
       amount: Number(amount),
       category,
       isEmergency: transactionType === 'expense' ? isEmergency : false,
-      item: note || '未分類',
+      item: note.trim() || '未命名消費',
       created_at: recordTime ? new Date(recordTime).toISOString() : undefined,
       transaction_type: transactionType,
     });
@@ -144,7 +106,7 @@ export const TransactionModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pb-20">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -158,105 +120,18 @@ export const TransactionModal = ({
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-        className="relative w-full max-w-md bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden"
+        className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[75vh]"
       >
-        {/* Tab Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-          <div className="flex gap-1 bg-slate-100 rounded-2xl p-1">
-            <button
-              onClick={() => setActiveTab('ai')}
-              className={cn(
-                "px-4 py-2 rounded-xl font-black text-sm transition-all",
-                activeTab === 'ai'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-600'
-              )}
-            >
-              ✨ AI 魔法輸入
-            </button>
-            <button
-              onClick={() => setActiveTab('manual')}
-              className={cn(
-                "px-4 py-2 rounded-xl font-black text-sm transition-all",
-                activeTab === 'manual'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-600'
-              )}
-            >
-              ✍️ 手動輸入
-            </button>
-          </div>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0 border-b border-slate-100">
+          <h2 className="font-black text-lg text-slate-800">記一筆</h2>
           <button onClick={handleClose} className="p-2 bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors ml-2">
             <X size={20} />
           </button>
         </div>
 
-        {/* ── AI Tab ── */}
-        {activeTab === 'ai' && (
-          <div className="p-6 space-y-6 pb-8">
-            {isParsing ? (
-              <div className="py-14 flex flex-col items-center gap-5">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-violet-500 rounded-full animate-ping opacity-20" />
-                  <div className="relative bg-violet-500 p-6 rounded-full text-white shadow-lg shadow-violet-200">
-                    <Loader2 size={36} className="animate-spin" />
-                  </div>
-                </div>
-                <p className="text-slate-500 font-bold">AI 魔法解析中...</p>
-              </div>
-            ) : (
-              <>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">
-                    今天花了什麼？或賺了多少？
-                  </label>
-                  <div className="flex gap-3 items-center">
-                    <input
-                      ref={aiInputRef}
-                      type="text"
-                      value={aiText}
-                      onChange={e => setAiText(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleAiSubmit()}
-                      placeholder="例：午餐吃麵 100、賣舊書賺 300"
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-base font-bold text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:border-violet-300 transition-all"
-                    />
-                    <button
-                      onClick={handleAiSubmit}
-                      disabled={!aiText.trim()}
-                      className="p-4 bg-violet-600 text-white rounded-2xl shadow-lg shadow-violet-200 flex items-center gap-2 font-black disabled:opacity-40 active:scale-95 transition-all hover:bg-violet-700"
-                    >
-                      <Sparkles size={20} />
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-slate-400 font-bold mt-3 leading-relaxed">
-                    AI 將自動判斷收支、分類並記帳 ✨<br/>支援自然語言，不需特定格式
-                  </p>
-                </div>
-
-                {/* Withdraw Fund Button */}
-                {onWithdrawFund && piggyBankSaved > 0 && (
-                  <button
-                    onClick={() => {
-                      const val = prompt(`從夢想基金拿出多少？\n目前基金餘額：$${Math.floor(piggyBankSaved)}`);
-                      const num = Number(val);
-                      if (val && !isNaN(num) && num > 0) {
-                        onWithdrawFund(num);
-                        handleClose();
-                      }
-                    }}
-                    className="w-full py-4 rounded-2xl font-bold text-sm border-2 border-slate-200 text-slate-500 bg-transparent hover:bg-slate-50 active:scale-95 transition-all"
-                  >
-                    💰 從夢想基金拿出（餘 ${Math.floor(piggyBankSaved)}）
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {/* ── Manual Tab ── */}
-        {activeTab === 'manual' && (
-          <div className="p-6 space-y-5 pb-8 overflow-y-auto max-h-[80vh]">
+        {/* ── Manual Form ── */}
+        <div className="p-6 space-y-5 pb-8 overflow-y-auto">
             {/* Income/Expense Toggle */}
             <div className="flex gap-2 bg-slate-100 rounded-2xl p-1.5">
               <button
@@ -432,8 +307,6 @@ export const TransactionModal = ({
               </button>
             )}
           </div>
-        )}
-
         {/* ── Emergency Confirm Overlay ── */}
         <AnimatePresence>
           {isEmergencyConfirm && (

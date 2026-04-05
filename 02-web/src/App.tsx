@@ -5,14 +5,16 @@ import { Fund } from './components/Fund';
 import { HistoryList } from './components/HistoryList';
 import { TransactionModal } from './components/TransactionModal';
 import { SettingsModal } from './components/SettingsModal';
+import { Report } from './components/Report';
+import { Details } from './components/Details';
 import { initDB, getSettings, saveSettings, addTransaction, getTransactions, addFundRecord, updateTransaction } from './lib/db';
 import type { AppState, Category, IncomeCategory, UserSettings } from './types';
-import { AnimatePresence } from 'motion/react';
-import { PiggyBank, Wallet, History as HistoryIcon } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { PiggyBank, Wallet, History as HistoryIcon, PieChart as PieChartIcon, ClipboardList } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-export type Tab = 'fund' | 'home' | 'history';
+export type Tab = 'details' | 'fund' | 'home' | 'history' | 'report';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
@@ -29,15 +31,39 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState<Tab>('home');
+  const [showRolloverToast, setShowRolloverToast] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     const load = async () => {
       console.log('📱 核心組件啟動...');
       try {
         await initDB();
-        const settings = getSettings();
+        let settings = getSettings();
         const transactions = getTransactions();
         
+        if (settings && settings.last_login_date) {
+          const todayStr = new Date().toISOString().split('T')[0];
+          if (settings.last_login_date < todayStr) {
+            const hasChanged = runAutoRollover(settings, transactions, todayStr);
+            if (hasChanged) {
+              settings = getSettings(); // Refresh from DB
+              setShowRolloverToast(true);
+              setTimeout(() => setShowRolloverToast(false), 5000);
+            }
+          }
+        }
+
         const appState = calculateState(settings, transactions);
         setState(appState);
         setDbReady(true);
@@ -60,15 +86,92 @@ export default function App() {
     load();
   }, []);
 
+  const runAutoRollover = (settings: UserSettings, transactions: any[], todayStr: string) => {
+    let currDateStr = settings.last_login_date;
+    let changed = false;
+    let s = { ...settings };
+    
+    // Safety cap to prevent infinite loop if weird dates exist
+    let limit = 0;
+    
+    while (currDateStr < todayStr && limit < 100) {
+      limit++;
+      
+      const settleStr = currDateStr;
+      const monthStr = settleStr.substring(0, 7);
+      
+      // Calc allowance for settleStr
+      const monthSpentEmergency = transactions
+        .filter(t => t.is_emergency && t.created_at.startsWith(monthStr) && t.created_at.split('T')[0] <= settleStr)
+        .reduce((acc, t) => acc + t.amount, 0);
+        
+      const netMonthly = s.total_budget - s.fixed_expenses - monthSpentEmergency;
+      const [year, month, day] = settleStr.split('-').map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const remainingDays = daysInMonth - day + 1;
+      
+      const normalSpentBeforeSettle = transactions
+        .filter(t => !t.is_emergency && t.created_at.startsWith(monthStr) && t.created_at.split('T')[0] < settleStr)
+        .reduce((acc, t) => acc + t.amount, 0);
+        
+      const settleAllowance = Math.max(0, (netMonthly - normalSpentBeforeSettle) / remainingDays);
+      
+      const daySpend = transactions
+        .filter(t => !t.is_emergency && t.created_at.split('T')[0] === settleStr)
+        .reduce((acc, t) => acc + t.amount, 0);
+        
+      const surplus = settleAllowance - daySpend;
+      const isOverspent = surplus < 0;
+
+      if (!isOverspent) {
+        const surplusInt = Math.floor(surplus);
+        s.piggy_bank_saved += surplusInt;
+        s.current_streak += 1;
+        if (surplusInt > 0) {
+          addFundRecord(surplusInt, `結算 ${settleStr} 節餘存入`);
+        }
+        if (s.current_streak % 7 === 0 && s.current_streak > 0) {
+          const reward = Math.floor(settleAllowance * 7 * 0.1);
+          s.piggy_bank_saved += reward;
+          addFundRecord(reward, `🏆 連擊 ${s.current_streak} 天附加獎勵 (${settleStr})`);
+        }
+      } else {
+        s.current_streak = 0;
+        const overspendAmount = Math.abs(surplus);
+        if (overspendAmount > settleAllowance * 0.5) {
+           const penalty = Math.floor(overspendAmount * 0.1);
+           s.total_budget -= penalty;
+        }
+        const naughtyCategories = transactions
+          .filter(t => t.created_at.split('T')[0] === settleStr && ['快樂水/零食', '娛樂社交'].includes(t.category))
+          .map(t => t.category);
+        s.taxed_categories = Array.from(new Set(naughtyCategories)) as Category[];
+      }
+      
+      // Advance exactly one day
+      const d = new Date(year, month - 1, day + 1);
+      currDateStr = d.toISOString().split('T')[0];
+      changed = true;
+    }
+    
+    if (changed) {
+      s.last_login_date = todayStr;
+      saveSettings(s);
+      return true;
+    }
+    return false;
+  };
+
   const calculateState = (settings: UserSettings | null, transactions: any[]): AppState => {
     if (!settings) return { settings, transactions, currentDailyBalance: 0, todayAllowance: 0 };
     
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
+    const monthStr = todayStr.substring(0, 7);
     
-    // Emergency total
+    // Emergency total THIS MONTH
     const monthSpentEmergency = transactions
-      .filter(t => t.is_emergency)
+      .filter(t => t.is_emergency && t.created_at.startsWith(monthStr))
       .reduce((acc, t) => acc + t.amount, 0);
 
     // Remaining budget for distribution
@@ -80,7 +183,7 @@ export default function App() {
 
     // Daily allowance for TODAY
     const normalSpentBeforeToday = transactions
-      .filter(t => !t.is_emergency && t.created_at.split('T')[0] !== todayStr)
+      .filter(t => !t.is_emergency && t.created_at.startsWith(monthStr) && t.created_at.split('T')[0] !== todayStr)
       .reduce((acc, t) => acc + t.amount, 0);
 
     const todayAllowance = Math.max(0, (netMonthly - normalSpentBeforeToday) / remainingDays);
@@ -253,66 +356,84 @@ export default function App() {
     </div>
   );
 
+  const appBgColor = currentTab === 'home' 
+    ? (state.currentDailyBalance > 0 ? 'bg-emerald-50' : 'bg-rose-50')
+    : 'bg-slate-50';
+
   return (
-    <div className="min-h-screen flex flex-col font-sans antialiased text-slate-900 overflow-x-hidden">
+    <div className={cn("min-h-screen flex flex-col font-sans antialiased text-slate-900 overflow-x-hidden transition-colors duration-700", appBgColor)}>
+      {/* Auto Rollover Toast Alert */}
+      <AnimatePresence>
+        {showRolloverToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -50, x: '-50%' }}
+            className="fixed top-8 left-1/2 z-50 bg-emerald-500 text-white px-6 py-3 rounded-full font-black shadow-lg shadow-emerald-500/30 w-max"
+          >
+            🌙 已為您執行未登入天數的自動結算！
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {!state.settings ? (
         <Onboarding onComplete={handleApplySettings} />
       ) : (
         <div className="flex-1 flex flex-col pb-24 relative">
+          {currentTab === 'details' && (
+            <Details 
+              state={state} 
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onSaveSettings={(newSettings) => {
+                saveSettings(newSettings);
+                setState(calculateState(getSettings(), getTransactions()));
+              }}
+            />
+          )}
           {currentTab === 'fund' && <Fund state={state} onOpenSettings={() => setIsSettingsOpen(true)} />}
           {currentTab === 'home' && (
             <Home 
               state={state} 
               onOpenRecord={() => setIsModalOpen(true)} 
               onOpenSettings={() => setIsSettingsOpen(true)}
+              onRefresh={() => setState(calculateState(getSettings(), getTransactions()))}
             />
           )}
           {currentTab === 'history' && <HistoryList state={state} onRefresh={() => setState(calculateState(getSettings(), getTransactions()))} />}
+          {currentTab === 'report' && <Report state={state} onOpenSettings={() => setIsSettingsOpen(true)} />}
 
           {/* Bottom Navigation Bar */}
-          <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl border-t border-slate-100 px-6 py-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-40 pb-safe">
-            <div className="max-w-md mx-auto flex justify-between items-center text-slate-400">
-              <button 
-                onClick={() => setCurrentTab('fund')}
-                className={cn(
-                  "flex flex-col items-center gap-1.5 transition-all p-2 rounded-2xl w-20",
-                  currentTab === 'fund' ? "text-slate-900 font-bold" : "hover:text-slate-600 font-medium"
-                )}
-              >
-                <div className={cn("p-2 rounded-2xl transition-all", currentTab === 'fund' && "bg-slate-100 shadow-inner")}>
-                  <PiggyBank size={24} />
-                </div>
-                <span className="text-[10px]">夢想基金</span>
-              </button>
-
-              <button 
-                onClick={() => setCurrentTab('home')}
-                className={cn(
-                  "flex flex-col items-center gap-1.5 transition-all p-2 rounded-2xl w-20 transform -translate-y-4",
-                  currentTab === 'home' ? "text-slate-900 font-bold" : "hover:text-slate-600 font-medium"
-                )}
-              >
-                <div className={cn(
-                  "p-4 rounded-full shadow-xl transition-all text-white", 
-                  currentTab === 'home' ? "bg-slate-900 shadow-slate-900/20 scale-110" : "bg-slate-400 shadow-slate-300/50"
-                )}>
-                  <Wallet size={28} />
-                </div>
-                <span className="text-[10px]">主頁面</span>
-              </button>
-
-              <button 
-                onClick={() => setCurrentTab('history')}
-                className={cn(
-                  "flex flex-col items-center gap-1.5 transition-all p-2 rounded-2xl w-20",
-                  currentTab === 'history' ? "text-slate-900 font-bold" : "hover:text-slate-600 font-medium"
-                )}
-              >
-                <div className={cn("p-2 rounded-2xl transition-all", currentTab === 'history' && "bg-slate-100 shadow-inner")}>
-                  <HistoryIcon size={24} />
-                </div>
-                <span className="text-[10px]">歷史帳單</span>
-              </button>
+          <div className="fixed bottom-0 left-0 right-0 bg-white/70 backdrop-blur-2xl border-t border-slate-100/50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-40 pb-safe">
+            <div className="max-w-md mx-auto flex justify-between items-center text-slate-400 px-4 py-2">
+              {[
+                { id: 'details', icon: ClipboardList, label: '詳細' },
+                { id: 'fund', icon: PiggyBank, label: '撲滿' },
+                { id: 'home', icon: Wallet, label: '主控台' },
+                { id: 'history', icon: HistoryIcon, label: '帳單' },
+                { id: 'report', icon: PieChartIcon, label: '報表' }
+              ].map((item) => (
+                <button 
+                  key={item.id}
+                  onClick={() => setCurrentTab(item.id as Tab)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 transition-all p-2 rounded-2xl flex-1",
+                    currentTab === item.id 
+                      ? "text-slate-900 scale-105" 
+                      : "hover:text-slate-600 hover:scale-105"
+                  )}
+                >
+                  <div className={cn(
+                    "p-2 rounded-xl transition-all duration-300", 
+                    currentTab === item.id ? "bg-slate-900 text-white shadow-md shadow-slate-900/20" : "bg-transparent text-slate-400"
+                  )}>
+                    <item.icon size={22} strokeWidth={currentTab === item.id ? 2.5 : 2} />
+                  </div>
+                  <span className={cn(
+                    "text-[10px] whitespace-nowrap tracking-wider hidden sm:block",
+                    currentTab === item.id ? "font-bold" : "font-medium"
+                  )}>{item.label}</span>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -331,13 +452,10 @@ export default function App() {
               <SettingsModal
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
-                settings={state.settings}
-                onSave={(newSettings) => {
-                  saveSettings(newSettings);
-                  setState(calculateState(getSettings(), getTransactions()));
-                }}
                 onSimulateDay={handleSettleDay}
                 onReset={handleReset}
+                isDarkMode={isDarkMode}
+                onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
               />
             )}
           </AnimatePresence>

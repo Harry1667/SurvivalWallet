@@ -15,40 +15,78 @@
   overflow-x: hidden;
 }
 
+@layer base {
+  .dark {
+    --color-white: #0f172a;
+    --color-slate-50: #1e293b;
+    --color-slate-100: #334155;
+    --color-slate-200: #475569;
+    --color-slate-300: #64748b;
+    --color-slate-400: #94a3b8;
+    --color-slate-500: #cbd5e1;
+    --color-slate-600: #e2e8f0;
+    --color-slate-700: #f1f5f9;
+    --color-slate-800: #f8fafc;
+    --color-slate-900: #ffffff;
+  }
+}
+
 body {
   margin: 0;
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
   transition: background-color 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input, textarea {
+  -webkit-user-select: auto;
+  user-select: auto;
+  font-size: 16px !important; /* Prevent iOS input zoom */
 }
 
 .safe-bg {
   background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
 }
+.dark .safe-bg {
+  background: linear-gradient(180deg, #022c22 0%, #064e3b 100%);
+}
 
 .warning-bg {
   background: linear-gradient(180deg, #fffcf0 0%, #ffedd5 100%);
+}
+.dark .warning-bg {
+  background: linear-gradient(180deg, #451a03 0%, #78350f 100%);
 }
 
 .danger-bg {
   background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
 }
+.dark .danger-bg {
+  background: linear-gradient(180deg, #450a0a 0%, #7f1d1d 100%);
+}
 
 .bankrupt-bg {
   background: linear-gradient(180deg, #ef4444 0%, #991b1b 100%);
 }
+.dark .bankrupt-bg {
+  background: linear-gradient(180deg, #7f1d1d 0%, #450a0a 100%);
+}
 
 /* Glassmorphism effects */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.4);
+  background: color-mix(in srgb, var(--color-white) 40%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid color-mix(in srgb, var(--color-white) 50%, transparent);
 }
 
 .glass-modal {
-  background: rgba(255, 255, 255, 0.95);
+  background: color-mix(in srgb, var(--color-white) 95%, transparent);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
 }
@@ -60,4 +98,11 @@ body {
     -webkit-appearance: none;
     margin: 0;
   }
+}
+
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+}
+.pt-safe {
+  padding-top: max(env(safe-area-inset-top), 1rem);
 }

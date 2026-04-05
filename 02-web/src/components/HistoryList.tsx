@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Package, AlertTriangle, MoreHorizontal } from 'lucide-react';
 import type { AppState, Transaction, Category } from '../types';
@@ -22,7 +22,7 @@ interface Props {
 const TransactionCard = ({ t, isTaxed, onRefresh }: { t: Transaction; isTaxed: boolean; onRefresh: () => void }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
-  const emoji = CATEGORIES_EMOJI[t.category] || '📦';
+  const emoji = CATEGORIES_EMOJI[t.category as Category] || '📦';
 
   const handleDelete = () => {
     deleteTransaction(t.id);
@@ -140,7 +140,7 @@ export const HistoryList = ({ state, onRefresh }: Props) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col p-6 bg-slate-50 min-h-screen pt-12">
+    <div className="flex-1 flex flex-col p-6 pt-12 relative">
       <header className="mb-8">
         <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">歷史帳單</h1>
         <p className="text-sm font-bold text-slate-400">你所有的生存軌跡</p>
@@ -165,7 +165,7 @@ export const HistoryList = ({ state, onRefresh }: Props) => {
                     <TransactionCard
                       key={t.id}
                       t={t}
-                      isTaxed={!!(settings?.taxed_categories?.includes(t.category) && !t.is_emergency)}
+                      isTaxed={!!(settings?.taxed_categories?.includes(t.category as Category) && !t.is_emergency)}
                       onRefresh={onRefresh}
                     />
                   ))}

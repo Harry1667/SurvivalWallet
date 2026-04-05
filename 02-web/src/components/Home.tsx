@@ -1,7 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar, Plus, AlertCircle, Coffee, ShieldAlert, Settings as SettingsIcon } from 'lucide-react';
-import type { AppState, Category } from '../types';
+import { Calendar, Plus, AlertCircle, Coffee, ShieldAlert, Settings as SettingsIcon, MoreHorizontal } from 'lucide-react';
+import type { AppState, Category, Transaction } from '../types';
+import { deleteTransaction, updateTransaction } from '../lib/db';
+import { EditTransactionModal } from './EditTransactionModal';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -49,10 +51,12 @@ interface Props {
   state: AppState;
   onOpenRecord: () => void;
   onOpenSettings: () => void;
+  onRefresh: () => void;
 }
 
-export const Home = ({ state, onOpenRecord, onOpenSettings }: Props) => {
+export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) => {
   const { settings, transactions, todayAllowance, currentDailyBalance } = state;
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   
   if (!settings) return null;
 
@@ -203,30 +207,97 @@ export const Home = ({ state, onOpenRecord, onOpenSettings }: Props) => {
         <section className="bg-white/70 backdrop-blur-2xl rounded-[2.5rem] mx-0 mb-0 -mx-6 -mb-6 px-6 pt-6 pb-8 shadow-[0_-15px_30px_rgba(0,0,0,0.04)] border-t border-white/50 space-y-3">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">今日花銷</p>
           <div className="space-y-2">
-            {todayTransactions.slice(0, 4).map(t => {
-              const EMOJI: Record<string, string> = {
-                '生存正餐': '🍚', '快樂水/零食': '🦹', '生活日用': '🛍️',
-                '交通通勤': '😌', '娛樂社交': '🎮', '自我投資': '📚', '其他雜項': '📦'
-              };
-              return (
-                <div key={t.id} className="flex justify-between items-center py-2 px-1">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">{EMOJI[t.category] || '📦'}</span>
-                    <div>
-                      <p className="font-black text-slate-800 text-sm leading-tight">{t.item || t.category}</p>
-                      <p className="text-[10px] font-bold text-slate-400">{new Date(t.created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}</p>
-                    </div>
-                  </div>
-                  <p className="font-black text-slate-700">-${t.amount}</p>
-                </div>
-              );
-            })}
+            {todayTransactions.slice(0, 4).map(t => (
+              <HomeTransactionCard key={t.id} t={t} onRefresh={onRefresh} onEdit={() => setEditingTransaction(t)} />
+            ))}
             {todayTransactions.length > 4 && (
               <p className="text-center text-[11px] font-bold text-slate-400 pt-2">還有 {todayTransactions.length - 4} 筆...</p>
             )}
           </div>
         </section>
       )}
+
+      <AnimatePresence>
+        {editingTransaction && (
+          <EditTransactionModal
+            transaction={editingTransaction}
+            onClose={() => setEditingTransaction(null)}
+            onSave={(id, data) => {
+              updateTransaction(id, data);
+              onRefresh();
+            }}
+            onDelete={(id) => {
+              deleteTransaction(id);
+              onRefresh();
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const HomeTransactionCard = ({ t, onRefresh, onEdit }: { t: Transaction; onRefresh: () => void; onEdit: () => void }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
+  
+  const EMOJI: Record<string, string> = {
+    '生存正餐': '🍚', '快樂水/零食': '🦹', '生活日用': '🛍️',
+    '交通通勤': '😌', '娛樂社交': '🎮', '自我投資': '📚', '其他雜項': '📦'
+  };
+
+  const handleDelete = () => {
+    deleteTransaction(t.id);
+    onRefresh();
+  };
+
+  return (
+    <div className="flex justify-between items-center py-2 px-1 relative">
+      <div className="flex items-center gap-3">
+        <span className="text-xl">{EMOJI[t.category] || '📦'}</span>
+        <div>
+          <p className="font-black text-slate-800 text-sm leading-tight">{t.item || t.category}</p>
+          <p className="text-[10px] font-bold text-slate-400">{new Date(t.created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <p className="font-black text-slate-700">-${t.amount}</p>
+        <div className="relative">
+          <button
+            onClick={() => setMenuOpen(v => !v)}
+            className="p-1.5 rounded-xl text-slate-300 hover:text-slate-600 hover:bg-slate-100 active:scale-95 transition-all"
+          >
+            <MoreHorizontal size={18} />
+          </button>
+          
+          <AnimatePresence>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, y: 5 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 5 }}
+                  className="absolute right-0 bottom-8 z-40 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden w-36"
+                >
+                  <button
+                    onClick={() => { setMenuOpen(false); onEdit(); }}
+                    className="w-full px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                  >
+                    ✏️ 編輯記錄
+                  </button>
+                  <div className="h-px bg-slate-100" />
+                  <button
+                    onClick={() => { setMenuOpen(false); handleDelete(); }}
+                    className="w-full px-4 py-3 text-left text-sm font-bold text-red-500 hover:bg-red-50 transition-colors flex items-center gap-2"
+                  >
+                    🗑️ 刪除記錄
+                  </button>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Save, Utensils, Coffee, ShoppingBag, Bus, Gamepad2, BookOpen, Package } from 'lucide-react';
-import type { Transaction, Category } from '../types';
+import type { Transaction, Category, IncomeCategory } from '../types';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -28,7 +28,7 @@ interface Props {
 
 export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }: Props) => {
   const [amount, setAmount] = useState(String(transaction.amount));
-  const [category, setCategory] = useState<Category>(transaction.category);
+  const [category, setCategory] = useState<Category | IncomeCategory>(transaction.category);
   const [note, setNote] = useState(transaction.item || '');
   const [isEmergency, setIsEmergency] = useState(transaction.is_emergency);
   const [recordTime, setRecordTime] = useState(() => {
@@ -43,14 +43,14 @@ export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }:
       amount: Number(amount),
       category,
       is_emergency: isEmergency,
-      item: note || '未分類消費',
+      item: note.trim() || '未命名消費',
       created_at: recordTime ? new Date(recordTime).toISOString() : transaction.created_at,
     });
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pb-20">
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -64,15 +64,16 @@ export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }:
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 80, scale: 0.97 }}
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-        className="relative w-full max-w-md bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 shadow-2xl space-y-6"
+        className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl flex flex-col max-h-[75vh] overflow-hidden"
       >
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center px-8 pt-8 pb-4 shrink-0 border-b border-slate-100">
           <h2 className="text-xl font-black text-slate-900 tracking-tight">編輯記錄</h2>
           <button onClick={onClose} className="p-2 bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
             <X size={20} />
           </button>
         </div>
 
+        <div className="p-8 pt-6 space-y-6 overflow-y-auto">
         {/* Amount */}
         <div>
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">金額</label>
@@ -168,6 +169,7 @@ export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }:
             <Save size={18} />
             儲存
           </button>
+        </div>
         </div>
       </motion.div>
     </div>
