@@ -217,7 +217,7 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
             onClick={() => onOpenRecord()}
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.02 }}
-            className="flex-1 py-5 bg-slate-900/95 backdrop-blur-xl text-white text-on-accent rounded-[2rem] font-black text-xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] flex items-center justify-center gap-3 transition-all group border border-slate-700/50"
+            className="flex-1 py-5 bg-slate-900/95 dark:bg-[#1e293b] backdrop-blur-xl text-white text-on-accent rounded-[2rem] font-black text-xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] flex items-center justify-center gap-3 transition-all group border border-slate-700/50"
           >
             <motion.div
               animate={{ rotate: [0, 90, 0] }}

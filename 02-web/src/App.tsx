@@ -430,7 +430,7 @@ export default function App() {
                   <div className={cn(
                     "p-2 rounded-xl transition-all duration-300",
                     currentTab === item.id
-                      ? "bg-slate-900 text-white text-on-accent shadow-md shadow-slate-900/20 dark:bg-[#e2e8f0] dark:text-[#0f172a]"
+                      ? "bg-slate-900 text-white text-on-accent shadow-md shadow-slate-900/20 dark:bg-[#334155] dark:text-[#f1f5f9]"
                       : "bg-transparent text-slate-400 dark:text-[#94a3b8]"
                   )}>
                     <item.icon size={22} strokeWidth={currentTab === item.id ? 2.5 : 2} />
