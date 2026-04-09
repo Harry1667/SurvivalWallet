@@ -1,0 +1,19 @@
+{
+  "name": "生存錢包 | Survival Wallet",
+  "short_name": "生存錢包",
+  "description": "極簡生存記帳，存下每一分節餘",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#d1fae5",
+  "theme_color": "#d1fae5",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "lifestyle"]
+}
