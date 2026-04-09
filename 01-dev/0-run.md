@@ -1,2 +1,2 @@
-cd 02-web/dynamic_survival_wallet
+cd 02-web
 npm install

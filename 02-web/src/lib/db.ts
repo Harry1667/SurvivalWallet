@@ -1,8 +1,14 @@
 import initSqlJs, { type Database } from 'sql.js';
-import type { Transaction, UserSettings, Category } from '../types';
+import type { Transaction, UserSettings } from '../types';
 import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
 
 let db: Database | null = null;
+
+// === 跨裝置備份 API 設定 ===
+const IS_PROD = import.meta.env.PROD;
+const API_LOAD_URL = IS_PROD ? '/api.php?action=load' : '/api/db/load';
+const API_SAVE_URL = IS_PROD ? '/api.php?action=save' : '/api/db/save';
+const SYNC_TOKEN = import.meta.env.VITE_SYNC_TOKEN || '';
 
 export const initDB = async (): Promise<Database> => {
   if (db) return db;
@@ -12,7 +18,9 @@ export const initDB = async (): Promise<Database> => {
   });
 
   try {
-    const res = await fetch('/api/db/load');
+    const res = await fetch(API_LOAD_URL, {
+      headers: IS_PROD ? { 'Authorization': `Bearer ${SYNC_TOKEN}` } : undefined
+    });
     if (res.ok) {
       const buffer = await res.arrayBuffer();
       const uint8Array = new Uint8Array(buffer);
@@ -46,7 +54,7 @@ export const initDB = async (): Promise<Database> => {
       CREATE TABLE transactions (
         id TEXT PRIMARY KEY,
         amount INTEGER NOT NULL,
-        category TEXT NOT NULL CHECK(category IN ('生存正餐', '快樂水/零食', '生活日用', '交通通勤', '娛樂社交', '自我投資', '其他雜項')),
+        category TEXT NOT NULL,
         is_emergency BOOLEAN DEFAULT 0,
         item TEXT DEFAULT '未分類消費',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -104,11 +112,12 @@ export const saveDB = async () => {
   if (!db) return;
   const data = db.export();
   try {
-    await fetch('/api/db/save', {
+    await fetch(API_SAVE_URL, {
       method: 'POST',
       body: new Blob([data.buffer as ArrayBuffer]),
       headers: {
-        'Content-Type': 'application/octet-stream'
+        'Content-Type': 'application/octet-stream',
+        ...(IS_PROD ? { 'Authorization': `Bearer ${SYNC_TOKEN}` } : {})
       }
     });
     console.log('💾 資料庫已同步至本地資料夾 /database');
@@ -225,9 +234,12 @@ export const updateTransaction = (id: string, t: Partial<Transaction>) => {
   }
 };
 
-export const getTransactions = (limit = 50): Transaction[] => {
+export const getTransactions = (limit?: number): Transaction[] => {
   if (!db) return [];
-  const res = db.exec(`SELECT * FROM transactions ORDER BY created_at DESC LIMIT ${limit}`);
+  const query = limit
+    ? `SELECT * FROM transactions ORDER BY created_at DESC LIMIT ${limit}`
+    : `SELECT * FROM transactions ORDER BY created_at DESC`;
+  const res = db.exec(query);
   if (res.length === 0) return [];
   
   const columns = res[0].columns;

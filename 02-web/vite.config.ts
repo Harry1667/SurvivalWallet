@@ -24,7 +24,7 @@ function localDbPlugin() {
           res.end('saved');
         });
       });
-      server.middlewares.use('/api/db/load', (req: any, res: any) => {
+      server.middlewares.use('/api/db/load', (_req: any, res: any) => {
         const dbPath = path.resolve(__dirname, 'database/survival_wallet.sqlite');
         if (fs.existsSync(dbPath)) {
           const buffer = fs.readFileSync(dbPath);

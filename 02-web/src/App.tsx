@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Onboarding } from './components/Onboarding';
 import { Home } from './components/Home';
 import { Fund } from './components/Fund';
@@ -71,17 +71,6 @@ export default function App() {
         console.error('❌ 初始化失敗:', e);
       }
 
-      // Auto-load encrypted API key from database/api.key
-      try {
-        const res = await fetch('/api/key/load');
-        const data = await res.json();
-        if (data.key) {
-          (window as any).__GEMINI_API_KEY_OVERRIDE__ = data.key;
-          console.log('🔑 已自動載入加密 API Key');
-        }
-      } catch (e) {
-        console.warn('⚠️ 無法載入 API Key:', e);
-      }
     };
     load();
   }, []);
@@ -298,7 +287,7 @@ export default function App() {
 
       const today = new Date().toISOString().split('T')[0];
       const naughtyCategories = state.transactions
-        .filter(t => t.created_at.split('T')[0] === today && ['🧋 快樂水/零食', '娛樂社交'].includes(t.category))
+        .filter(t => t.created_at.split('T')[0] === today && ['快樂水/零食', '娛樂社交'].includes(t.category))
         .map(t => t.category);
       
       nextTaxedCategories = Array.from(new Set(naughtyCategories)) as Category[];
