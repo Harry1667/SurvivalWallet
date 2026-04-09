@@ -422,14 +422,16 @@ export default function App() {
                   onClick={() => { prevTabRef.current = currentTab; setCurrentTab(item.id as Tab); }}
                   className={cn(
                     "flex flex-col items-center gap-1 transition-all p-2 rounded-2xl flex-1",
-                    currentTab === item.id 
-                      ? "text-slate-900 scale-105" 
-                      : "hover:text-slate-600 hover:scale-105"
+                    currentTab === item.id
+                      ? "text-slate-900 dark:text-[#f1f5f9] scale-105"
+                      : "hover:text-slate-600 dark:hover:text-[#cbd5e1] hover:scale-105"
                   )}
                 >
                   <div className={cn(
-                    "p-2 rounded-xl transition-all duration-300", 
-                    currentTab === item.id ? "bg-slate-900 text-white text-on-accent shadow-md shadow-slate-900/20" : "bg-transparent text-slate-400"
+                    "p-2 rounded-xl transition-all duration-300",
+                    currentTab === item.id
+                      ? "bg-slate-900 text-white text-on-accent shadow-md shadow-slate-900/20 dark:bg-[#e2e8f0] dark:text-[#0f172a]"
+                      : "bg-transparent text-slate-400 dark:text-[#94a3b8]"
                   )}>
                     <item.icon size={22} strokeWidth={currentTab === item.id ? 2.5 : 2} />
                   </div>
