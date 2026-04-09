@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Settings as SettingsIcon, History as HistoryIcon } from 'lucide-react';
 import type { AppState } from '../types';
