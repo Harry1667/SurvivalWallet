@@ -274,7 +274,7 @@ export const Details = ({ state, onOpenSettings, onSaveSettings }: { state: AppS
           
           <button 
             onClick={() => { onSaveSettings(formData); alert('設定已儲存！'); }}
-            className="w-full py-3 mt-4 bg-emerald-500 text-white rounded-2xl font-black text-sm shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 hover:bg-emerald-600 active:scale-95 transition-all"
+            className="w-full py-3 mt-4 bg-emerald-500 text-white text-on-accent rounded-2xl font-black text-sm shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 hover:bg-emerald-600 active:scale-95 transition-all"
           >
             <Save size={16} />
             儲存修改

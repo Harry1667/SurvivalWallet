@@ -139,7 +139,7 @@ export const TransactionModal = ({
                 className={cn(
                   "flex-1 py-3 rounded-xl font-black text-sm transition-all",
                   transactionType === 'expense'
-                    ? 'bg-slate-900 text-white shadow-md'
+                    ? 'bg-slate-900 text-white text-on-accent shadow-md'
                     : 'text-slate-400 hover:text-slate-600'
                 )}
               >
@@ -150,7 +150,7 @@ export const TransactionModal = ({
                 className={cn(
                   "flex-1 py-3 rounded-xl font-black text-sm transition-all",
                   transactionType === 'income'
-                    ? 'bg-emerald-600 text-white shadow-md'
+                    ? 'bg-emerald-600 text-white text-on-accent shadow-md'
                     : 'text-slate-400 hover:text-slate-600'
                 )}
               >
@@ -215,11 +215,11 @@ export const TransactionModal = ({
                         )}
                       >
                         {isTaxed && (
-                          <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded-full shadow-sm">
+                          <div className="absolute -top-1 -right-1 bg-red-500 text-white text-on-accent text-[7px] font-black px-1.5 py-0.5 rounded-full shadow-sm">
                             +20%
                           </div>
                         )}
-                        <div className={cn("p-2.5 rounded-xl text-white shadow-md transition-transform", cat.color, isSelected ? "scale-110" : "")}>
+                        <div className={cn("p-2.5 rounded-xl text-white text-on-accent shadow-md transition-transform", cat.color, isSelected ? "scale-110" : "")}>
                           <cat.icon size={18} />
                         </div>
                         <span className="text-[9px] font-bold text-slate-600 truncate w-full text-center">{cat.name}</span>
@@ -237,10 +237,10 @@ export const TransactionModal = ({
                         onClick={() => setCategory(cat.name)}
                         className={cn(
                           "flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all active:scale-95",
-                          isSelected ? "border-emerald-600 bg-emerald-50" : "border-transparent hover:bg-emerald-50/50"
+                          isSelected ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950" : "border-transparent hover:bg-emerald-50/50"
                         )}
                       >
-                        <div className={cn("p-2.5 rounded-xl text-white shadow-md", cat.color, isSelected ? "scale-110" : "")}>
+                        <div className={cn("p-2.5 rounded-xl text-white text-on-accent shadow-md", cat.color, isSelected ? "scale-110" : "")}>
                           <cat.icon size={18} />
                         </div>
                         <span className="text-[9px] font-bold text-slate-600 text-center w-full truncate">{cat.name}</span>
@@ -282,8 +282,8 @@ export const TransactionModal = ({
                 "w-full py-5 rounded-[2rem] font-black text-xl shadow-xl transition-all active:scale-95",
                 amount && category
                   ? transactionType === 'income'
-                    ? 'bg-emerald-600 text-white shadow-emerald-200'
-                    : isEmergency ? 'bg-red-600 text-white shadow-red-200' : 'bg-slate-900 text-white shadow-slate-200'
+                    ? 'bg-emerald-600 text-white text-on-accent shadow-emerald-200'
+                    : isEmergency ? 'bg-red-600 text-white text-on-accent shadow-red-200' : 'bg-slate-900 text-white text-on-accent shadow-slate-200'
                   : 'bg-slate-100 text-slate-300 cursor-not-allowed'
               )}
             >
@@ -336,7 +336,7 @@ export const TransactionModal = ({
                 </button>
                 <button
                   onClick={handleManualConfirm}
-                  className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-bold active:scale-95 transition-all shadow-lg shadow-red-200"
+                  className="flex-1 py-4 bg-red-600 text-white text-on-accent rounded-2xl font-bold active:scale-95 transition-all shadow-lg shadow-red-200"
                 >
                   確定避險
                 </button>

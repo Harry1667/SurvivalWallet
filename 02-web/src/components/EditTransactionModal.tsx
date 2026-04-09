@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useState } from 'react';
+import { motion } from 'motion/react';
 import { X, Save, Utensils, Coffee, ShoppingBag, Bus, Gamepad2, BookOpen, Package } from 'lucide-react';
 import type { Transaction, Category, IncomeCategory } from '../types';
 import { clsx, type ClassValue } from 'clsx';
@@ -102,7 +102,7 @@ export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }:
                   category === cat.name ? "border-slate-900 bg-slate-50" : "border-transparent hover:bg-slate-50"
                 )}
               >
-                <div className={cn("p-2.5 rounded-xl text-white shadow-md transition-transform", cat.color, category === cat.name ? "scale-110" : "")}>
+                <div className={cn("p-2.5 rounded-xl text-white text-on-accent shadow-md transition-transform", cat.color, category === cat.name ? "scale-110" : "")}>
                   <cat.icon size={18} />
                 </div>
                 <span className="text-[9px] font-bold text-slate-600 truncate w-full text-center">{cat.name}</span>
@@ -164,7 +164,7 @@ export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }:
           <button
             onClick={handleSave}
             disabled={!amount || !category}
-            className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-200 disabled:opacity-40"
+            className="flex-1 py-4 bg-slate-900 text-white text-on-accent rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-200 disabled:opacity-40"
           >
             <Save size={18} />
             儲存

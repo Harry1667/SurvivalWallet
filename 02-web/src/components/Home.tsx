@@ -114,7 +114,7 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
       <div className="fixed top-6 left-6 right-6 z-50 space-y-3 pointer-events-none">
         <AnimatePresence>
           {isBankruptcyRisk && (
-            <Toast key="bankruptcy" colorClass="bg-red-500/95 border border-red-400 text-white shadow-red-900/20">
+            <Toast key="bankruptcy" colorClass="bg-red-500/95 border border-red-400 text-white text-on-accent shadow-red-900/20">
               <div className="p-2 bg-white/20 rounded-xl shadow-sm">
                 <AlertCircle size={20} />
               </div>
@@ -122,7 +122,7 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
             </Toast>
           )}
           {coffeeSpend > 500 && (
-            <Toast key="coffee" colorClass="bg-orange-500/95 border border-orange-400 text-white shadow-orange-900/20">
+            <Toast key="coffee" colorClass="bg-orange-500/95 border border-orange-400 text-white text-on-accent shadow-orange-900/20">
               <div className="p-2 bg-white/20 rounded-xl shadow-sm">
                 <Coffee size={20} />
               </div>
@@ -130,7 +130,7 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
             </Toast>
           )}
           {settings.taxed_categories.length > 0 && (
-            <Toast key="tax" colorClass="bg-slate-800/95 border border-slate-700 text-white shadow-slate-900/40">
+            <Toast key="tax" colorClass="bg-slate-800/95 border border-slate-700 text-white text-on-accent shadow-slate-900/40">
                <div className="p-2 bg-white/20 rounded-xl shadow-sm">
                 <ShieldAlert size={20} />
               </div>
@@ -192,7 +192,7 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
         <div className="w-full flex gap-4 mt-8">
           <button 
             onClick={() => onOpenRecord()}
-            className="flex-1 py-5 bg-slate-900/95 backdrop-blur-xl text-white rounded-[2rem] font-black text-xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all group border border-slate-700/50"
+            className="flex-1 py-5 bg-slate-900/95 backdrop-blur-xl text-white text-on-accent rounded-[2rem] font-black text-xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all group border border-slate-700/50"
           >
             <div className="p-1.5 bg-white/20 rounded-xl group-hover:rotate-90 transition-transform">
               <Plus size={20} strokeWidth={3} />

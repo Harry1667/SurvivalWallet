@@ -341,13 +341,13 @@ export default function App() {
   };
 
   if (!dbReady) return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white font-black text-2xl tracking-tighter">
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white text-on-accent font-black text-2xl tracking-tighter">
       LOADING SURVIVAL ENGINE...
     </div>
   );
 
-  const appBgColor = currentTab === 'home' 
-    ? (state.currentDailyBalance > 0 ? 'bg-emerald-50' : 'bg-rose-50')
+  const appBgColor = currentTab === 'home'
+    ? (state.currentDailyBalance > 0 ? 'bg-emerald-50 dark:bg-[#022c22]' : 'bg-rose-50 dark:bg-[#1c1917]')
     : 'bg-slate-50';
 
   return (
@@ -359,7 +359,7 @@ export default function App() {
             initial={{ opacity: 0, y: -50, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: -50, x: '-50%' }}
-            className="fixed top-8 left-1/2 z-50 bg-emerald-500 text-white px-6 py-3 rounded-full font-black shadow-lg shadow-emerald-500/30 w-max"
+            className="fixed top-8 left-1/2 z-50 bg-emerald-500 text-white text-on-accent px-6 py-3 rounded-full font-black shadow-lg shadow-emerald-500/30 w-max"
           >
             🌙 已為您執行未登入天數的自動結算！
           </motion.div>
@@ -393,7 +393,7 @@ export default function App() {
           {currentTab === 'report' && <Report state={state} onOpenSettings={() => setIsSettingsOpen(true)} />}
 
           {/* Bottom Navigation Bar */}
-          <div className="fixed bottom-0 left-0 right-0 bg-white/70 backdrop-blur-2xl border-t border-slate-100/50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-40 pb-safe">
+          <div className="fixed bottom-0 left-0 right-0 bg-white/70 dark:bg-[#0f172a]/80 backdrop-blur-2xl border-t border-slate-100/50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-40 pb-safe">
             <div className="max-w-md mx-auto flex justify-between items-center text-slate-400 px-4 py-2">
               {[
                 { id: 'details', icon: ClipboardList, label: '詳細' },
@@ -414,7 +414,7 @@ export default function App() {
                 >
                   <div className={cn(
                     "p-2 rounded-xl transition-all duration-300", 
-                    currentTab === item.id ? "bg-slate-900 text-white shadow-md shadow-slate-900/20" : "bg-transparent text-slate-400"
+                    currentTab === item.id ? "bg-slate-900 text-white text-on-accent shadow-md shadow-slate-900/20" : "bg-transparent text-slate-400"
                   )}>
                     <item.icon size={22} strokeWidth={currentTab === item.id ? 2.5 : 2} />
                   </div>

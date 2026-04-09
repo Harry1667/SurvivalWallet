@@ -57,7 +57,7 @@ export const Onboarding = ({ onComplete }: Props) => {
         className="w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl space-y-10 border border-slate-100"
       >
         <div className="text-center space-y-3">
-          <div className="mx-auto w-20 h-20 bg-slate-900 rounded-[2rem] flex items-center justify-center text-white shadow-xl shadow-slate-200">
+          <div className="mx-auto w-20 h-20 bg-slate-900 rounded-[2rem] flex items-center justify-center text-white text-on-accent shadow-xl shadow-slate-200">
             <Wallet size={40} />
           </div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight">生存錢包</h1>
@@ -134,7 +134,7 @@ export const Onboarding = ({ onComplete }: Props) => {
 
           <button 
             type="submit"
-            className="w-full py-5 bg-slate-900 text-white rounded-[2rem] font-black text-2xl shadow-xl shadow-slate-200 flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all"
+            className="w-full py-5 bg-slate-900 text-white text-on-accent rounded-[2rem] font-black text-2xl shadow-xl shadow-slate-200 flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all"
           >
             開始生存 <ArrowRight size={24} />
           </button>

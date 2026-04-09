@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* 啟用 class-based dark mode（配合 document.documentElement.classList.add('dark')） */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --animate-shake: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
   @keyframes shake {
@@ -75,6 +78,24 @@ input, textarea {
 }
 .dark .bankrupt-bg {
   background: linear-gradient(180deg, #7f1d1d 0%, #450a0a 100%);
+}
+
+/* 強制白色文字 — 用於深色/彩色按鈕，不受 CSS 變數反轉影響 */
+.dark .text-on-accent {
+  color: #ffffff;
+}
+
+/* 非 slate 色系的暗色背景覆蓋 */
+.dark .dark\:emerald-bg {
+  background-color: #022c22;
+}
+.dark .dark\:rose-bg {
+  background-color: #1c1917;
+}
+
+/* 暗色模式下降低陰影對比 */
+.dark [class*="shadow-"] {
+  --tw-shadow-color: rgba(0, 0, 0, 0.3);
 }
 
 /* Glassmorphism effects */
