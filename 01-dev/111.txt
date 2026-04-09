@@ -1,6 +1,0 @@
-The account has more than 5 failed orders within 1 hour, please wait 1 hour and try again!
-Verify Domain:survivalwallet.looptw.com
-Verify Content:xuDtQ--qa9sFk11S_5PBQjobpTD-sZqylYzQetNR7-c
-Error Code:
-no valid A records found for survivalwallet.looptw.com; no valid AAAA records found for survivalwallet.looptw.com
-Verification Result:Verification Failed

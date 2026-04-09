@@ -1,0 +1,6 @@
+# 含有密碼和敏感資訊的檔案
+01-dev/0-run.md
+01-dev/111.txt
+.DS_Store
+survival-wallet-dist.zip
+.gstack/
