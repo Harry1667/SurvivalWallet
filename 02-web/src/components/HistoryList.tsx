@@ -175,13 +175,19 @@ export const HistoryList = ({ state, onRefresh }: Props) => {
                 </div>
 
                 <div className="bg-white rounded-[2rem] p-2 shadow-xl shadow-slate-200/40 border border-slate-100 flex flex-col gap-1">
-                  {grouped[date].map(t => (
-                    <TransactionCard
+                  {grouped[date].map((t, i) => (
+                    <motion.div
                       key={t.id}
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05, duration: 0.3 }}
+                    >
+                    <TransactionCard
                       t={t}
                       isTaxed={!!(settings?.taxed_categories?.includes(t.category as Category) && !t.is_emergency)}
                       onRefresh={onRefresh}
                     />
+                    </motion.div>
                   ))}
                 </div>
               </div>

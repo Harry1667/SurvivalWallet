@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Onboarding } from './components/Onboarding';
 import { Home } from './components/Home';
 import { Fund } from './components/Fund';
@@ -16,6 +16,8 @@ import { twMerge } from 'tailwind-merge';
 
 export type Tab = 'details' | 'fund' | 'home' | 'history' | 'report';
 
+const TAB_ORDER: Tab[] = ['details', 'fund', 'home', 'history', 'report'];
+
 function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
 }
@@ -31,6 +33,8 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState<Tab>('home');
+  const prevTabRef = useRef<Tab>('home');
+  const slideDirection = TAB_ORDER.indexOf(currentTab) >= TAB_ORDER.indexOf(prevTabRef.current) ? 1 : -1;
   const [showRolloverToast, setShowRolloverToast] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
 
@@ -369,28 +373,39 @@ export default function App() {
       {!state.settings ? (
         <Onboarding onComplete={handleApplySettings} />
       ) : (
-        <div className="flex-1 flex flex-col pb-24 relative">
-          {currentTab === 'details' && (
-            <Details 
-              state={state} 
-              onOpenSettings={() => setIsSettingsOpen(true)}
-              onSaveSettings={(newSettings) => {
-                saveSettings(newSettings);
-                setState(calculateState(getSettings(), getTransactions()));
-              }}
-            />
-          )}
-          {currentTab === 'fund' && <Fund state={state} onOpenSettings={() => setIsSettingsOpen(true)} />}
-          {currentTab === 'home' && (
-            <Home 
-              state={state} 
-              onOpenRecord={() => setIsModalOpen(true)} 
-              onOpenSettings={() => setIsSettingsOpen(true)}
-              onRefresh={() => setState(calculateState(getSettings(), getTransactions()))}
-            />
-          )}
-          {currentTab === 'history' && <HistoryList state={state} onRefresh={() => setState(calculateState(getSettings(), getTransactions()))} />}
-          {currentTab === 'report' && <Report state={state} onOpenSettings={() => setIsSettingsOpen(true)} />}
+        <div className="flex-1 flex flex-col pb-24 relative overflow-hidden">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={currentTab}
+              initial={{ x: slideDirection * 60, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: slideDirection * -60, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+              className="flex-1 flex flex-col"
+            >
+              {currentTab === 'details' && (
+                <Details
+                  state={state}
+                  onOpenSettings={() => setIsSettingsOpen(true)}
+                  onSaveSettings={(newSettings) => {
+                    saveSettings(newSettings);
+                    setState(calculateState(getSettings(), getTransactions()));
+                  }}
+                />
+              )}
+              {currentTab === 'fund' && <Fund state={state} onOpenSettings={() => setIsSettingsOpen(true)} />}
+              {currentTab === 'home' && (
+                <Home
+                  state={state}
+                  onOpenRecord={() => setIsModalOpen(true)}
+                  onOpenSettings={() => setIsSettingsOpen(true)}
+                  onRefresh={() => setState(calculateState(getSettings(), getTransactions()))}
+                />
+              )}
+              {currentTab === 'history' && <HistoryList state={state} onRefresh={() => setState(calculateState(getSettings(), getTransactions()))} />}
+              {currentTab === 'report' && <Report state={state} onOpenSettings={() => setIsSettingsOpen(true)} />}
+            </motion.div>
+          </AnimatePresence>
 
           {/* Bottom Navigation Bar */}
           <div className="fixed bottom-0 left-0 right-0 bg-white/70 dark:bg-[#0f172a]/80 backdrop-blur-2xl border-t border-slate-100/50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-40 pb-safe">
@@ -404,7 +419,7 @@ export default function App() {
               ].map((item) => (
                 <button 
                   key={item.id}
-                  onClick={() => setCurrentTab(item.id as Tab)}
+                  onClick={() => { prevTabRef.current = currentTab; setCurrentTab(item.id as Tab); }}
                   className={cn(
                     "flex flex-col items-center gap-1 transition-all p-2 rounded-2xl flex-1",
                     currentTab === item.id 

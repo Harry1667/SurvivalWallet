@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useSpring, useTransform, useMotionValue } from 'motion/react';
 import { Calendar, Plus, AlertCircle, Coffee, ShieldAlert, Settings as SettingsIcon, MoreHorizontal } from 'lucide-react';
 import type { AppState, Category, Transaction } from '../types';
 import { deleteTransaction, updateTransaction } from '../lib/db';
@@ -45,6 +45,19 @@ const Toast = ({ children, colorClass }: { children: React.ReactNode, colorClass
       {children}
     </motion.div>
   );
+};
+
+// 計數器滾動動畫元件
+const AnimatedNumber = ({ value, className }: { value: number; className?: string }) => {
+  const motionValue = useMotionValue(0);
+  const spring = useSpring(motionValue, { stiffness: 80, damping: 20 });
+  const display = useTransform(spring, (v) => `$${Math.floor(v)}`);
+
+  useEffect(() => {
+    motionValue.set(value);
+  }, [value, motionValue]);
+
+  return <motion.span className={className}>{display}</motion.span>;
 };
 
 interface Props {
@@ -141,7 +154,12 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
       </div>
 
       {/* Header Bar */}
-      <header className="flex justify-between items-start pt-2">
+      <motion.header
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="flex justify-between items-start pt-2"
+      >
         <div className="flex flex-col gap-2">
           <span className="text-[11px] bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full font-black text-slate-800 shadow-lg shadow-black/5 border border-white/60 flex items-center gap-1.5 w-max">
             <span className="text-sm drop-shadow-sm">{title.icon}</span> {title.name}
@@ -150,20 +168,20 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
             <Calendar size={13} strokeWidth={3} /> 本月還剩 {remainingDays} 天
           </span>
         </div>
-        <button 
+        <button
           onClick={onOpenSettings}
           className="p-3 bg-white/60 backdrop-blur-md rounded-2xl shadow-sm text-slate-600 hover:text-slate-800 border border-white/40 hover:scale-105 active:scale-95 transition-all"
         >
           <SettingsIcon size={20} />
         </button>
-      </header>
+      </motion.header>
 
       {/* Hero Section */}
       <main className="flex-1 flex flex-col items-center justify-center space-y-8 py-8 w-full max-w-sm mx-auto">
         <div className="text-center space-y-4 w-full">
           <p className="text-slate-600 font-black text-sm uppercase tracking-[0.25em] drop-shadow-sm">今日剩餘可用</p>
-          <motion.h1 
-            key={currentDailyBalance}
+          <motion.h1
+            key="hp-display"
             initial={{ scale: 0.8, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             transition={{ type: 'spring', bounce: 0.5 }}
@@ -172,7 +190,7 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
               status === 'danger' ? 'text-red-600 animate-shake' : 'text-slate-900'
             )}
           >
-            ${Math.floor(currentDailyBalance)}
+            <AnimatedNumber value={Math.floor(currentDailyBalance)} />
           </motion.h1>
 
           {/* Today's Expense Progress */}
@@ -189,22 +207,37 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
         </div>
 
         {/* Action Buttons */}
-        <div className="w-full flex gap-4 mt-8">
-          <button 
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5, type: 'spring', bounce: 0.4 }}
+          className="w-full flex gap-4 mt-8"
+        >
+          <motion.button
             onClick={() => onOpenRecord()}
-            className="flex-1 py-5 bg-slate-900/95 backdrop-blur-xl text-white text-on-accent rounded-[2rem] font-black text-xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all group border border-slate-700/50"
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            className="flex-1 py-5 bg-slate-900/95 backdrop-blur-xl text-white text-on-accent rounded-[2rem] font-black text-xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] flex items-center justify-center gap-3 transition-all group border border-slate-700/50"
           >
-            <div className="p-1.5 bg-white/20 rounded-xl group-hover:rotate-90 transition-transform">
+            <motion.div
+              animate={{ rotate: [0, 90, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', repeatDelay: 2 }}
+              className="p-1.5 bg-white/20 rounded-xl"
+            >
               <Plus size={20} strokeWidth={3} />
-            </div>
+            </motion.div>
             記一筆
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
       </main>
 
       {/* Today's Transaction List */}
       {todayTransactions.length > 0 && (
-        <section className="bg-white/70 backdrop-blur-2xl rounded-[2.5rem] mx-0 mb-0 -mx-6 -mb-6 px-6 pt-6 pb-8 shadow-[0_-15px_30px_rgba(0,0,0,0.04)] border-t border-white/50 space-y-3">
+        <motion.section
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          className="bg-white/70 backdrop-blur-2xl rounded-[2.5rem] mx-0 mb-0 -mx-6 -mb-6 px-6 pt-6 pb-8 shadow-[0_-15px_30px_rgba(0,0,0,0.04)] border-t border-white/50 space-y-3">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">今日花銷</p>
           <div className="space-y-2">
             {todayTransactions.slice(0, 4).map(t => (
@@ -214,7 +247,7 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
               <p className="text-center text-[11px] font-bold text-slate-400 pt-2">還有 {todayTransactions.length - 4} 筆...</p>
             )}
           </div>
-        </section>
+        </motion.section>
       )}
 
       <AnimatePresence>
