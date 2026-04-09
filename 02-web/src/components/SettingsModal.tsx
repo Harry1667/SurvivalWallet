@@ -46,9 +46,9 @@ export const SettingsModal = ({ isOpen, onClose, onSimulateDay, onReset, isDarkM
           <span className="text-sm font-bold text-slate-700">黑暗模式切換</span>
           <button 
             onClick={onToggleDarkMode}
-            className="w-14 h-8 rounded-full transition-colors relative flex items-center px-1 shadow-inner bg-slate-200"
+            className="w-14 h-8 rounded-full transition-colors relative flex items-center px-1 shadow-inner bg-slate-200 dark:bg-[#334155]"
           >
-            <div className={`w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}>
+            <div className={`w-6 h-6 rounded-full bg-white dark:bg-[#e2e8f0] shadow-sm flex items-center justify-center transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}>
               <span className="text-[10px]">{isDarkMode ? '🌙' : '☀️'}</span>
             </div>
           </button>

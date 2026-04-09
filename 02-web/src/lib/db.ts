@@ -101,11 +101,11 @@ export const getFundRecords = () => {
   }
 };
 
-export const addFundRecord = (amount: number, reason: string) => {
+export const addFundRecord = async (amount: number, reason: string) => {
   if (!db) return;
   const id = crypto.randomUUID();
   db.run('INSERT INTO fund_records (id, amount, reason) VALUES (?, ?, ?)', [id, amount, reason]);
-  saveDB();
+  await saveDB();
 };
 
 export const saveDB = async () => {
@@ -146,7 +146,7 @@ export const getSettings = (): UserSettings | null => {
   };
 };
 
-export const saveSettings = (settings: Partial<UserSettings>) => {
+export const saveSettings = async (settings: Partial<UserSettings>) => {
   if (!db) return;
   const existing = getSettings();
   if (existing) {
@@ -163,7 +163,7 @@ export const saveSettings = (settings: Partial<UserSettings>) => {
     }
 
     db.run(`UPDATE user_settings SET ${finalSetClause} WHERE id = 1`, finalValues);
-  } else {
+  } else if (Object.keys(settings).length > 0) {
     // Insert new
     const keys = ['id', 'total_budget', 'fixed_expenses', 'daily_base_budget', 'piggy_bank_name', 'piggy_bank_goal', 'piggy_bank_saved', 'current_daily_balance', 'current_streak', 'last_login_date', 'taxed_categories_json'];
     const placeholders = keys.map(() => '?').join(', ');
@@ -183,20 +183,20 @@ export const saveSettings = (settings: Partial<UserSettings>) => {
     ];
     db.run(`INSERT INTO user_settings (${keys.join(', ')}) VALUES (${placeholders})`, values);
   }
-  saveDB();
+  await saveDB();
 };
 
-export const addTransaction = (t: Partial<Transaction>) => {
+export const addTransaction = async (t: Partial<Transaction>) => {
   if (!db) return;
   const id = crypto.randomUUID();
   const created_at = t.created_at || new Date().toISOString();
   const transaction_type = t.transaction_type || 'expense';
   const values = [
-    id, 
-    t.amount ?? 0, 
-    t.category ?? '其他雜項', 
-    t.is_emergency ? 1 : 0, 
-    t.item || '未分類消費', 
+    id,
+    t.amount ?? 0,
+    t.category ?? '其他雜項',
+    t.is_emergency ? 1 : 0,
+    t.item || '未分類消費',
     created_at,
     transaction_type
   ];
@@ -204,17 +204,17 @@ export const addTransaction = (t: Partial<Transaction>) => {
     `INSERT INTO transactions (id, amount, category, is_emergency, item, created_at, transaction_type) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     values
   );
-  saveDB();
+  await saveDB();
   console.log('📝 已新增交易:', transaction_type, t.item || t.category, '$', t.amount);
 };
 
-export const deleteTransaction = (id: string) => {
+export const deleteTransaction = async (id: string) => {
   if (!db) return;
   db.run('DELETE FROM transactions WHERE id = ?', [id]);
-  saveDB();
+  await saveDB();
 };
 
-export const updateTransaction = (id: string, t: Partial<Transaction>) => {
+export const updateTransaction = async (id: string, t: Partial<Transaction>) => {
   if (!db) return;
   
   const updates: string[] = [];
@@ -230,7 +230,7 @@ export const updateTransaction = (id: string, t: Partial<Transaction>) => {
   if (updates.length > 0) {
     values.push(id);
     db.run(`UPDATE transactions SET ${updates.join(', ')} WHERE id = ?`, values);
-    saveDB();
+    await saveDB();
   }
 };
 

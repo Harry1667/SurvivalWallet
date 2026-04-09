@@ -351,7 +351,7 @@ export default function App() {
   );
 
   const appBgColor = currentTab === 'home'
-    ? (state.currentDailyBalance > 0 ? 'bg-emerald-50 dark:bg-[#022c22]' : 'bg-rose-50 dark:bg-[#1c1917]')
+    ? (state.currentDailyBalance > 0 ? 'safe-bg' : 'bg-rose-50 dark:bg-[#1c1917]')
     : 'bg-slate-50';
 
   return (
@@ -408,7 +408,7 @@ export default function App() {
           </AnimatePresence>
 
           {/* Bottom Navigation Bar */}
-          <div className="fixed bottom-0 left-0 right-0 bg-white/70 dark:bg-[#0f172a]/80 backdrop-blur-2xl border-t border-slate-100/50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-40 pb-safe">
+          <nav aria-label="主導航" className="fixed bottom-0 left-0 right-0 bg-white/70 dark:bg-[#0f172a]/80 backdrop-blur-2xl border-t border-slate-100/50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-40 pb-safe">
             <div className="max-w-md mx-auto flex justify-between items-center text-slate-400 px-4 py-2">
               {[
                 { id: 'details', icon: ClipboardList, label: '詳細' },
@@ -417,8 +417,10 @@ export default function App() {
                 { id: 'history', icon: HistoryIcon, label: '帳單' },
                 { id: 'report', icon: PieChartIcon, label: '報表' }
               ].map((item) => (
-                <button 
+                <button
                   key={item.id}
+                  aria-label={item.label}
+                  aria-current={currentTab === item.id ? 'page' : undefined}
                   onClick={() => { prevTabRef.current = currentTab; setCurrentTab(item.id as Tab); }}
                   className={cn(
                     "flex flex-col items-center gap-1 transition-all p-2 rounded-2xl flex-1",
@@ -442,11 +444,11 @@ export default function App() {
                 </button>
               ))}
             </div>
-          </div>
+          </nav>
 
           <AnimatePresence>
             {isModalOpen && (
-              <TransactionModal 
+              <TransactionModal
                 isOpen={isModalOpen} 
                 onClose={() => setIsModalOpen(false)}
                 onConfirm={handleAddTransaction}

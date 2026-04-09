@@ -47,7 +47,8 @@ export const Report = ({ state, onOpenSettings }: { state: AppState, onOpenSetti
     return `${cat.hex} ${start}% ${cumulativePercent}%`;
   }).join(', ');
 
-  const pieStyle = totalSpent > 0 ? { background: `conic-gradient(${conicStops})` } : { background: '#f1f5f9' };
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+  const pieStyle = totalSpent > 0 ? { background: `conic-gradient(${conicStops})` } : { background: isDark ? '#1e293b' : '#f1f5f9' };
 
   return (
     <div className="flex-1 flex flex-col pt-12 relative overflow-x-hidden safe-area-inset-top">
@@ -72,7 +73,7 @@ export const Report = ({ state, onOpenSettings }: { state: AppState, onOpenSetti
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/40 border border-slate-100 flex flex-col items-center justify-center text-center relative overflow-hidden"
         >
-          <div className="absolute top-0 right-0 p-8 bg-blue-50/50 rounded-bl-[100px] pointer-events-none" />
+          <div className="absolute top-0 right-0 p-8 bg-blue-50/50 dark:bg-blue-950/30 rounded-bl-[100px] pointer-events-none" />
           <span className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 relative z-10">本月總開銷</span>
           <span className="text-5xl font-black text-slate-900 tracking-tighter relative z-10">
             ${totalSpent}

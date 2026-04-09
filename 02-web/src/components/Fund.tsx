@@ -37,7 +37,7 @@ export const Fund = ({ state, onOpenSettings }: Props) => {
   return (
     <div className="flex-1 flex flex-col pt-12 relative overflow-x-hidden safe-area-inset-top">
       {/* Background Decorative Blurs */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-96 bg-gradient-to-b from-blue-100/50 to-transparent rounded-[100%] blur-3xl pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-96 bg-gradient-to-b from-blue-100/50 dark:from-blue-950/30 to-transparent rounded-[100%] blur-3xl pointer-events-none" />
 
       {/* Header */}
       <header className="flex justify-between items-center px-6 relative z-10 mb-8">

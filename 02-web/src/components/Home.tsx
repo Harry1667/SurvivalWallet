@@ -161,14 +161,15 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
         className="flex justify-between items-start pt-2"
       >
         <div className="flex flex-col gap-2">
-          <span className="text-[11px] bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full font-black text-slate-800 shadow-lg shadow-black/5 border border-white/60 flex items-center gap-1.5 w-max">
+          <span className="text-[11px] bg-white/80 dark:bg-[#1e293b]/80 backdrop-blur-md px-3 py-1.5 rounded-full font-black text-slate-800 shadow-lg shadow-black/5 border border-white/60 dark:border-[#334155] flex items-center gap-1.5 w-max">
             <span className="text-sm drop-shadow-sm">{title.icon}</span> {title.name}
           </span>
-          <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-1 bg-white/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/40 shadow-sm w-max">
+          <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-1 bg-white/40 dark:bg-[#1e293b]/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/40 dark:border-[#334155] shadow-sm w-max">
             <Calendar size={13} strokeWidth={3} /> 本月還剩 {remainingDays} 天
           </span>
         </div>
         <button
+          aria-label="開啟設定"
           onClick={onOpenSettings}
           className="p-3 bg-white/60 backdrop-blur-md rounded-2xl shadow-sm text-slate-600 hover:text-slate-800 border border-white/40 hover:scale-105 active:scale-95 transition-all"
         >
@@ -217,7 +218,7 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
             onClick={() => onOpenRecord()}
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.02 }}
-            className="flex-1 py-5 bg-slate-900/95 dark:bg-[#1e293b] backdrop-blur-xl text-white text-on-accent rounded-[2rem] font-black text-xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] flex items-center justify-center gap-3 transition-all group border border-slate-700/50"
+            className="flex-1 py-5 bg-slate-900/95 dark:bg-[#1e293b] backdrop-blur-xl text-white text-on-accent rounded-[2rem] font-black text-xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] flex items-center justify-center gap-3 transition-all group border border-slate-700/50 dark:border-[#475569]"
           >
             <motion.div
               animate={{ rotate: [0, 90, 0] }}
