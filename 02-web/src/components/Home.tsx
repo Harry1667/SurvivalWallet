@@ -242,7 +242,9 @@ const HomeTransactionCard = ({ t, onRefresh, onEdit }: { t: Transaction; onRefre
   
   const EMOJI: Record<string, string> = {
     '生存正餐': '🍚', '快樂水/零食': '🦹', '生活日用': '🛍️',
-    '交通通勤': '😌', '娛樂社交': '🎮', '自我投資': '📚', '其他雜項': '📦'
+    '交通通勤': '😌', '娛樂社交': '🎮', '自我投資': '📚', '其他雜項': '📦',
+    '基礎補給': '💰', '任務賞金': '⚔️', '天降寶箱': '🎁',
+    '裝備變現': '♻️', '被動生息': '📈', '其他補血': '📦'
   };
 
   const handleDelete = () => {
@@ -260,7 +262,9 @@ const HomeTransactionCard = ({ t, onRefresh, onEdit }: { t: Transaction; onRefre
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <p className="font-black text-slate-700">-${t.amount}</p>
+        <p className={`font-black ${t.transaction_type === 'income' ? 'text-emerald-600' : 'text-slate-700'}`}>
+          {t.transaction_type === 'income' ? '+' : '-'}${t.amount}
+        </p>
         <div className="relative">
           <button
             onClick={() => setMenuOpen(v => !v)}

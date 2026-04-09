@@ -4,7 +4,7 @@ import { Package, AlertTriangle, MoreHorizontal } from 'lucide-react';
 import type { AppState, Transaction, Category } from '../types';
 import { deleteTransaction, updateTransaction } from '../lib/db';
 import { EditTransactionModal } from './EditTransactionModal';
-const CATEGORIES_EMOJI: Record<Category, string> = {
+const CATEGORIES_EMOJI: Record<string, string> = {
   '生存正餐': '🍚',
   '快樂水/零食': '🧋',
   '生活日用': '🛍️',
@@ -12,6 +12,13 @@ const CATEGORIES_EMOJI: Record<Category, string> = {
   '娛樂社交': '🎮',
   '自我投資': '📚',
   '其他雜項': '📦',
+  // 收入分類
+  '基礎補給': '💰',
+  '任務賞金': '⚔️',
+  '天降寶箱': '🎁',
+  '裝備變現': '♻️',
+  '被動生息': '📈',
+  '其他補血': '📦',
 };
 
 interface Props {
@@ -55,7 +62,9 @@ const TransactionCard = ({ t, isTaxed, onRefresh }: { t: Transaction; isTaxed: b
           <div className="text-right">
             <div className="flex items-center gap-1.5 justify-end">
               {t.is_emergency && <AlertTriangle size={14} className="text-red-500" strokeWidth={3} />}
-              <p className="font-black text-slate-900 text-xl tracking-tight">-${t.amount}</p>
+              <p className={`font-black text-xl tracking-tight ${t.transaction_type === 'income' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                {t.transaction_type === 'income' ? '+' : '-'}${t.amount}
+              </p>
             </div>
             {isTaxed && (
               <div className="text-[10px] font-black text-red-500 bg-red-50 px-1.5 py-0.5 rounded mt-1">
@@ -149,7 +158,8 @@ export const HistoryList = ({ state, onRefresh }: Props) => {
       <div className="space-y-8 pb-10">
         {sortedDates.length > 0 ? (
           sortedDates.map((date) => {
-            const dayTotal = grouped[date].reduce((acc, t) => acc + t.amount, 0);
+            const dayExpense = grouped[date].filter(t => t.transaction_type !== 'income').reduce((acc, t) => acc + t.amount, 0);
+            const dayIncome = grouped[date].filter(t => t.transaction_type === 'income').reduce((acc, t) => acc + t.amount, 0);
             return (
               <div key={date} className="space-y-4">
                 <div className="flex items-center justify-between pl-2">
@@ -157,7 +167,11 @@ export const HistoryList = ({ state, onRefresh }: Props) => {
                     <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
                     {getRelativeDateLabel(date)}
                   </h3>
-                  <span className="text-xs font-bold text-slate-400">共 -${dayTotal}</span>
+                  <span className="text-xs font-bold text-slate-400">
+                    {dayExpense > 0 && <span>支出 -${dayExpense}</span>}
+                    {dayExpense > 0 && dayIncome > 0 && ' · '}
+                    {dayIncome > 0 && <span className="text-emerald-500">收入 +${dayIncome}</span>}
+                  </span>
                 </div>
 
                 <div className="bg-white rounded-[2rem] p-2 shadow-xl shadow-slate-200/40 border border-slate-100 flex flex-col gap-1">
