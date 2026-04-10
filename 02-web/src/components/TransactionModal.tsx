@@ -106,7 +106,7 @@ export const TransactionModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pb-20">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -120,7 +120,7 @@ export const TransactionModal = ({
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-        className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[75vh]"
+        className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-2rem)]"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0 border-b border-slate-100">

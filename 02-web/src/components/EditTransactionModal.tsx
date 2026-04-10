@@ -50,8 +50,8 @@ export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }:
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pb-20">
-      <motion.div 
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -64,7 +64,7 @@ export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }:
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 80, scale: 0.97 }}
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-        className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl flex flex-col max-h-[75vh] overflow-hidden"
+        className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl flex flex-col max-h-[calc(100dvh-2rem)] overflow-hidden"
       >
         <div className="flex justify-between items-center px-8 pt-8 pb-4 shrink-0 border-b border-slate-100">
           <h2 className="text-xl font-black text-slate-900 tracking-tight">編輯記錄</h2>
