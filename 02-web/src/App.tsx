@@ -166,9 +166,11 @@ export default function App() {
     const todayStr = now.toISOString().split('T')[0];
     const monthStr = todayStr.substring(0, 7);
 
-    // 補記 / 歷史匯入的紀錄不影響今日剩餘 / 本月預算分配
-    // 注意：state.transactions 還是回傳全部，HistoryList / Report 會決定如何顯示
-    const liveTx = transactions.filter(t => (t.entry_mode || 'normal') === 'normal');
+    // 補記 (backfill) = 真的花掉的錢，要進入本月預算池影響今日剩餘
+    // 歷史匯入 (historical) = 跨月/開發前的純歷史，不影響任何現在的數字
+    // → calculateState 只排除 historical，保留 normal + backfill
+    // 注意：runAutoRollover 仍然只看 normal，避免回頭重算過去那天的 streak / 撲滿
+    const liveTx = transactions.filter(t => (t.entry_mode || 'normal') !== 'historical');
 
     // Emergency total THIS MONTH
     const monthSpentEmergency = liveTx
@@ -224,24 +226,33 @@ export default function App() {
 
     const isIncome = data.transaction_type === 'income';
     const entryMode = data.entry_mode || 'normal';
-    const isLive = entryMode === 'normal';
+    // historical = 跨月/開發前的純歷史，完全不對任何 current state 做副作用
+    // backfill = 真的花掉/收到的錢，要影響本月預算池（讓今日剩餘正確）
+    //            但「過去那天的結算結果」（streak/撲滿/奧侈稅）保持不動，
+    //            那是 runAutoRollover 的責任，這邊管不到
+    const affectsBudget = entryMode !== 'historical';
+    const isNormalLive = entryMode === 'normal';
     let taxSaved = 0;
 
-    // 補記 / 歷史匯入：純歷史資料，不對任何現在的狀態做副作用
-    if (isLive) {
-      if (isIncome) {
-        // 💹 Income: add to total_budget (補血)
-        console.log('💹 收入補血:', data.item, '+$', data.amount);
+    if (isIncome) {
+      // 💹 收入補血：normal + backfill 都會 += total_budget
+      // (補記薪水也是真的進帳，要進入本月可用)
+      if (affectsBudget) {
+        console.log(`💹 收入補血 [${entryMode}]:`, data.item, '+$', data.amount);
         saveSettings({ total_budget: settings.total_budget + data.amount });
       } else {
-        // Virtual Luxury Tax Logic (expense only, normal entries only)
-        if (!data.isEmergency && settings.taxed_categories.includes(data.category as Category)) {
-          taxSaved = Math.floor(data.amount * 0.2);
-          console.log('💸 徵收 20% 奧侈稅:', taxSaved, '將存入撲滿');
-        }
+        console.log('📚 歷史收入（純歷史，不影響 total_budget）:', data.item, '+$', data.amount);
       }
     } else {
-      console.log(`📚 ${entryMode === 'backfill' ? '補記' : '歷史匯入'}:`, data.item, data.transaction_type, '$', data.amount, '— 不影響現在的狀態');
+      // 奧侈稅只有 normal 紀錄會觸發（補記不要回頭被過去的稅況罰）
+      if (isNormalLive && !data.isEmergency && settings.taxed_categories.includes(data.category as Category)) {
+        taxSaved = Math.floor(data.amount * 0.2);
+        console.log('💸 徵收 20% 奧侈稅:', taxSaved, '將存入撲滿');
+      } else if (entryMode === 'backfill') {
+        console.log('🕒 補記支出:', data.item, '$', data.amount, '— 進入本月預算池但不觸發奧侈稅');
+      } else if (entryMode === 'historical') {
+        console.log('📚 歷史支出（純歷史，不影響任何現在的數字）:', data.item, '$', data.amount);
+      }
     }
 
     // Add to DB（不論模式都寫進去）
