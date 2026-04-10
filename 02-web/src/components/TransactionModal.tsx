@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  X, AlertTriangle,
+  X, AlertTriangle, History, BookMarked,
   Utensils, Coffee, ShoppingBag, Bus, Gamepad2, BookOpen, Package,
   DollarSign, Sword, Gift, Recycle, TrendingUp, Archive,
 } from 'lucide-react';
-import type { Category, IncomeCategory } from '../types';
+import type { Category, IncomeCategory, EntryMode } from '../types';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -41,7 +41,16 @@ interface ConfirmData {
   item: string;
   created_at?: string;
   transaction_type: 'expense' | 'income';
+  entry_mode: EntryMode;
 }
+
+// 補記模式快速日期選項
+const nowLocalISO = (offsetDays = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+};
 
 interface Props {
   isOpen: boolean;
@@ -58,6 +67,8 @@ export const TransactionModal = ({
   piggyBankSaved = 0, onWithdrawFund
 }: Props) => {
   const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
+  // 補記模式：normal=即時記、backfill=最近忘了補記、historical=匯入很早以前的歷史
+  const [entryMode, setEntryMode] = useState<EntryMode>('normal');
 
   // Manual mode state
   const [amount, setAmount] = useState('');
@@ -65,11 +76,7 @@ export const TransactionModal = ({
   const [category, setCategory] = useState<Category | IncomeCategory | null>(null);
   const [isEmergency, setIsEmergency] = useState(false);
   const [isEmergencyConfirm, setIsEmergencyConfirm] = useState(false);
-  const [recordTime, setRecordTime] = useState(() => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
-  });
+  const [recordTime, setRecordTime] = useState(() => nowLocalISO());
 
   // Reset when closed
   const handleClose = () => {
@@ -79,10 +86,20 @@ export const TransactionModal = ({
     setIsEmergency(false);
     setIsEmergencyConfirm(false);
     setTransactionType('expense');
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    setRecordTime(now.toISOString().slice(0, 16));
+    setEntryMode('normal');
+    setRecordTime(nowLocalISO());
     onClose();
+  };
+
+  // 切換補記模式時，預設日期跟著變
+  // - normal: 現在
+  // - backfill: 預設昨天（最常見的補記情境）
+  // - historical: 預設一個月前
+  const switchEntryMode = (mode: EntryMode) => {
+    setEntryMode(mode);
+    if (mode === 'normal') setRecordTime(nowLocalISO());
+    else if (mode === 'backfill') setRecordTime(nowLocalISO(-1));
+    else if (mode === 'historical') setRecordTime(nowLocalISO(-30));
   };
 
   // ── Manual Submit ───────────────────────────────────────────────────────────
@@ -99,6 +116,7 @@ export const TransactionModal = ({
       item: note.trim() || '未命名消費',
       created_at: recordTime ? new Date(recordTime).toISOString() : undefined,
       transaction_type: transactionType,
+      entry_mode: entryMode,
     });
     handleClose();
   };
@@ -124,14 +142,79 @@ export const TransactionModal = ({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0 border-b border-slate-100">
-          <h2 className="font-black text-lg text-slate-800">記一筆</h2>
-          <button onClick={handleClose} className="p-2 bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors ml-2">
+          <h2 className="font-black text-lg text-slate-800 flex items-center gap-2">
+            {entryMode === 'normal' && '記一筆'}
+            {entryMode === 'backfill' && (
+              <>
+                <History size={18} className="text-amber-500" />
+                補記一筆
+              </>
+            )}
+            {entryMode === 'historical' && (
+              <>
+                <BookMarked size={18} className="text-slate-500" />
+                匯入歷史
+              </>
+            )}
+          </h2>
+          <button aria-label="關閉" onClick={handleClose} className="p-2 bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors ml-2">
             <X size={20} />
           </button>
         </div>
 
         {/* ── Manual Form ── */}
         <div className="p-6 space-y-5 pb-8 overflow-y-auto">
+            {/* Entry Mode Selector — 三段式：一般 / 補記 / 歷史匯入 */}
+            <div className="flex gap-1 bg-slate-50 border border-slate-100 rounded-2xl p-1">
+              <button
+                onClick={() => switchEntryMode('normal')}
+                className={cn(
+                  "flex-1 py-2 rounded-xl font-black text-[11px] tracking-wide transition-all",
+                  entryMode === 'normal'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-600'
+                )}
+              >
+                ⚡ 即時記
+              </button>
+              <button
+                onClick={() => switchEntryMode('backfill')}
+                className={cn(
+                  "flex-1 py-2 rounded-xl font-black text-[11px] tracking-wide transition-all flex items-center justify-center gap-1",
+                  entryMode === 'backfill'
+                    ? 'bg-white text-amber-600 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-600'
+                )}
+              >
+                <History size={12} />
+                補記
+              </button>
+              <button
+                onClick={() => switchEntryMode('historical')}
+                className={cn(
+                  "flex-1 py-2 rounded-xl font-black text-[11px] tracking-wide transition-all flex items-center justify-center gap-1",
+                  entryMode === 'historical'
+                    ? 'bg-white text-slate-700 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-600'
+                )}
+              >
+                <BookMarked size={12} />
+                歷史
+              </button>
+            </div>
+            {entryMode !== 'normal' && (
+              <div className={cn(
+                "text-[11px] font-bold rounded-2xl px-4 py-3 leading-relaxed",
+                entryMode === 'backfill'
+                  ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                  : 'bg-slate-50 text-slate-600 border border-slate-100'
+              )}>
+                {entryMode === 'backfill'
+                  ? '🕒 補記模式：這筆只會進歷史紀錄，不會影響今日剩餘、撲滿、連擊或奧侈稅。'
+                  : '📚 歷史匯入模式：用來補上開發這個 app 之前的紀錄，純歷史資料，不影響任何現在的數字。'}
+              </div>
+            )}
+
             {/* Income/Expense Toggle */}
             <div className="flex gap-2 bg-slate-100 rounded-2xl p-1.5">
               <button
@@ -263,15 +346,42 @@ export const TransactionModal = ({
               />
             </div>
 
-            {/* Record Time */}
+            {/* Record Time — 補記/歷史模式下醒目顯示 + 快速選日期 */}
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">記錄時間</label>
+              <label className={cn(
+                "text-[10px] font-black uppercase tracking-widest block mb-2",
+                entryMode === 'normal' ? "text-slate-400" : entryMode === 'backfill' ? "text-amber-600" : "text-slate-700"
+              )}>
+                {entryMode === 'normal' ? '記錄時間' : entryMode === 'backfill' ? '🕒 補記日期 (必填)' : '📚 歷史日期 (必填)'}
+              </label>
               <input
                 type="datetime-local"
                 value={recordTime}
                 onChange={e => setRecordTime(e.target.value)}
-                className="w-full py-2 text-slate-700 font-bold bg-slate-50 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-100 transition-all text-sm"
+                className={cn(
+                  "w-full py-2 px-4 font-bold rounded-xl focus:outline-none focus:ring-2 transition-all text-sm",
+                  entryMode === 'normal'
+                    ? "text-slate-700 bg-slate-50 focus:ring-slate-100"
+                    : entryMode === 'backfill'
+                      ? "text-amber-900 bg-amber-50 border border-amber-200 focus:ring-amber-200"
+                      : "text-slate-800 bg-slate-100 border border-slate-200 focus:ring-slate-300"
+                )}
               />
+              {/* 快速日期選項，補記/歷史模式才出現 */}
+              {entryMode === 'backfill' && (
+                <div className="flex gap-2 mt-2">
+                  <button type="button" onClick={() => setRecordTime(nowLocalISO(-1))} className="flex-1 py-1.5 text-[11px] font-black text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors">昨天</button>
+                  <button type="button" onClick={() => setRecordTime(nowLocalISO(-3))} className="flex-1 py-1.5 text-[11px] font-black text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors">3 天前</button>
+                  <button type="button" onClick={() => setRecordTime(nowLocalISO(-7))} className="flex-1 py-1.5 text-[11px] font-black text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors">一週前</button>
+                </div>
+              )}
+              {entryMode === 'historical' && (
+                <div className="flex gap-2 mt-2">
+                  <button type="button" onClick={() => setRecordTime(nowLocalISO(-30))} className="flex-1 py-1.5 text-[11px] font-black text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">1 個月前</button>
+                  <button type="button" onClick={() => setRecordTime(nowLocalISO(-90))} className="flex-1 py-1.5 text-[11px] font-black text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">3 個月前</button>
+                  <button type="button" onClick={() => setRecordTime(nowLocalISO(-365))} className="flex-1 py-1.5 text-[11px] font-black text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">1 年前</button>
+                </div>
+              )}
             </div>
 
             {/* Submit */}
