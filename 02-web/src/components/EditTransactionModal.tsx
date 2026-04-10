@@ -117,7 +117,7 @@ export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }:
           {entryMode !== 'normal' && (
             <p className="text-[10px] font-bold text-slate-500 mt-2 leading-relaxed px-1">
               {entryMode === 'backfill'
-                ? '🕒 補記：不影響今日剩餘 / 撲滿 / 連擊 / 奧侈稅'
+                ? '🕒 補記：會進入本月預算池影響今日剩餘，但不回頭重算過去的連擊／撲滿／奧侈稅'
                 : '📚 歷史：純歷史資料，不影響任何現在的數字'}
             </p>
           )}
