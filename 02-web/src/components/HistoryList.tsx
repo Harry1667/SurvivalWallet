@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Package, AlertTriangle, MoreHorizontal } from 'lucide-react';
+import { Package, AlertTriangle, MoreHorizontal, History, BookMarked } from 'lucide-react';
 import type { AppState, Transaction, Category } from '../types';
 import { deleteTransaction, updateTransaction } from '../lib/db';
 import { EditTransactionModal } from './EditTransactionModal';
@@ -41,18 +41,43 @@ const TransactionCard = ({ t, isTaxed, onRefresh }: { t: Transaction; isTaxed: b
     onRefresh();
   };
 
+  // 補記 / 歷史 entry 視覺區隔
+  const mode = t.entry_mode || 'normal';
+  const isBackfill = mode === 'backfill';
+  const isHistorical = mode === 'historical';
+
   return (
     <>
-      <div className="flex justify-between items-center p-4 hover:bg-slate-50 rounded-[1.5rem] transition-colors relative group">
+      <div className={
+        isHistorical
+          ? "flex justify-between items-center p-4 rounded-[1.5rem] transition-colors relative group bg-slate-100/60 hover:bg-slate-100"
+          : isBackfill
+          ? "flex justify-between items-center p-4 rounded-[1.5rem] transition-colors relative group bg-amber-50/40 hover:bg-amber-50"
+          : "flex justify-between items-center p-4 hover:bg-slate-50 rounded-[1.5rem] transition-colors relative group"
+      }>
         {/* Left: Emoji & Info */}
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-slate-100/80 flex items-center justify-center text-2xl shadow-sm border border-slate-50 transition-transform group-hover:scale-110">
             {emoji}
           </div>
           <div>
-            <div className="font-black text-slate-900 text-base">{t.item || t.category}</div>
+            <div className="font-black text-slate-900 text-base flex items-center gap-1.5">
+              {t.item || t.category}
+              {isBackfill && (
+                <span title="補記紀錄（不影響今日剩餘）" className="inline-flex items-center text-amber-500">
+                  <History size={13} strokeWidth={3} />
+                </span>
+              )}
+              {isHistorical && (
+                <span title="歷史匯入紀錄（不影響今日剩餘）" className="inline-flex items-center text-slate-400">
+                  <BookMarked size={13} strokeWidth={3} />
+                </span>
+              )}
+            </div>
             <span className="text-[11px] font-bold text-slate-400 tracking-wide mt-0.5 block">
               {t.category} · {new Date(t.created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+              {isBackfill && <span className="ml-1.5 text-amber-600">· 補記</span>}
+              {isHistorical && <span className="ml-1.5 text-slate-500">· 歷史</span>}
             </span>
           </div>
         </div>
