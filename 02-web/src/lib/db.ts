@@ -83,7 +83,7 @@ export const initDB = async (): Promise<Database> => {
   try {
     db.run(`ALTER TABLE transactions ADD COLUMN entry_mode TEXT NOT NULL DEFAULT 'normal'`);
     console.log('✅ DB Migration: added entry_mode column');
-  } catch (_e) {
+  } catch {
     // Column already exists, ignore
   }
   saveDB();
