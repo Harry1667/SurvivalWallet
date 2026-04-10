@@ -139,7 +139,7 @@ export const TransactionModal = ({
                 className={cn(
                   "flex-1 py-3 rounded-xl font-black text-sm transition-all",
                   transactionType === 'expense'
-                    ? 'bg-slate-900 text-white text-on-accent shadow-md'
+                    ? 'bg-slate-900 text-white shadow-md'
                     : 'text-slate-400 hover:text-slate-600'
                 )}
               >

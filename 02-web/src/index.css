@@ -80,8 +80,11 @@ input, textarea {
   background: linear-gradient(180deg, #7f1d1d 0%, #450a0a 100%);
 }
 
-/* 強制白色文字 — 用於深色/彩色按鈕，不受 CSS 變數反轉影響 */
-.dark .text-on-accent {
+/* 強制白色文字 — 用於彩色（不反轉的）按鈕，例如 emerald / red / amber 等。
+   注意：請勿與 bg-slate-900 / bg-slate-800 等「會因暗色模式 CSS 變數反轉」的背景一起使用，
+   因為在暗色模式下這類背景會變成白色，固定白字會看不見。
+   slate 系列的按鈕請改用 text-white，由 --color-white 變數自動反轉處理。 */
+.text-on-accent {
   color: #ffffff;
 }
 
