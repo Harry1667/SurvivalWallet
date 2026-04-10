@@ -83,36 +83,39 @@ export default function App() {
     let currDateStr = settings.last_login_date;
     let changed = false;
     let s = { ...settings };
-    
+
+    // 補記/歷史匯入的紀錄不影響任何現在的狀態，rollover 只看 normal
+    const liveTx = transactions.filter(t => (t.entry_mode || 'normal') === 'normal');
+
     // Safety cap to prevent infinite loop if weird dates exist
     let limit = 0;
-    
+
     while (currDateStr < todayStr && limit < 100) {
       limit++;
-      
+
       const settleStr = currDateStr;
       const monthStr = settleStr.substring(0, 7);
-      
+
       // Calc allowance for settleStr
-      const monthSpentEmergency = transactions
+      const monthSpentEmergency = liveTx
         .filter(t => t.is_emergency && t.created_at.startsWith(monthStr) && t.created_at.split('T')[0] <= settleStr)
         .reduce((acc, t) => acc + t.amount, 0);
-        
+
       const netMonthly = s.total_budget - s.fixed_expenses - monthSpentEmergency;
       const [year, month, day] = settleStr.split('-').map(Number);
       const daysInMonth = new Date(year, month, 0).getDate();
       const remainingDays = daysInMonth - day + 1;
-      
-      const normalSpentBeforeSettle = transactions
+
+      const normalSpentBeforeSettle = liveTx
         .filter(t => !t.is_emergency && t.created_at.startsWith(monthStr) && t.created_at.split('T')[0] < settleStr)
         .reduce((acc, t) => acc + t.amount, 0);
-        
+
       const settleAllowance = Math.max(0, (netMonthly - normalSpentBeforeSettle) / remainingDays);
-      
-      const daySpend = transactions
+
+      const daySpend = liveTx
         .filter(t => !t.is_emergency && t.created_at.split('T')[0] === settleStr)
         .reduce((acc, t) => acc + t.amount, 0);
-        
+
       const surplus = settleAllowance - daySpend;
       const isOverspent = surplus < 0;
 
@@ -135,7 +138,8 @@ export default function App() {
            const penalty = Math.floor(overspendAmount * 0.1);
            s.total_budget -= penalty;
         }
-        const naughtyCategories = transactions
+        // 奧侈稅判斷也只看正常紀錄，不被補記/歷史汙染
+        const naughtyCategories = liveTx
           .filter(t => t.created_at.split('T')[0] === settleStr && ['快樂水/零食', '娛樂社交'].includes(t.category))
           .map(t => t.category);
         s.taxed_categories = Array.from(new Set(naughtyCategories)) as Category[];
@@ -157,32 +161,36 @@ export default function App() {
 
   const calculateState = (settings: UserSettings | null, transactions: any[]): AppState => {
     if (!settings) return { settings, transactions, currentDailyBalance: 0, todayAllowance: 0 };
-    
+
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     const monthStr = todayStr.substring(0, 7);
-    
+
+    // 補記 / 歷史匯入的紀錄不影響今日剩餘 / 本月預算分配
+    // 注意：state.transactions 還是回傳全部，HistoryList / Report 會決定如何顯示
+    const liveTx = transactions.filter(t => (t.entry_mode || 'normal') === 'normal');
+
     // Emergency total THIS MONTH
-    const monthSpentEmergency = transactions
+    const monthSpentEmergency = liveTx
       .filter(t => t.is_emergency && t.created_at.startsWith(monthStr))
       .reduce((acc, t) => acc + t.amount, 0);
 
     // Remaining budget for distribution
     const netMonthly = settings.total_budget - settings.fixed_expenses - monthSpentEmergency;
-    
+
     // Days remaining
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const remainingDays = daysInMonth - now.getDate() + 1;
 
     // Daily allowance for TODAY
-    const normalSpentBeforeToday = transactions
+    const normalSpentBeforeToday = liveTx
       .filter(t => !t.is_emergency && t.created_at.startsWith(monthStr) && t.created_at.split('T')[0] !== todayStr)
       .reduce((acc, t) => acc + t.amount, 0);
 
     const todayAllowance = Math.max(0, (netMonthly - normalSpentBeforeToday) / remainingDays);
-    
+
     // Today's balance
-    const todaySpentNormal = transactions
+    const todaySpentNormal = liveTx
       .filter(t => !t.is_emergency && t.created_at.split('T')[0] === todayStr)
       .reduce((acc, t) => acc + t.amount, 0);
 
@@ -202,33 +210,41 @@ export default function App() {
     setState(calculateState(settings, transactions));
   };
 
-  const handleAddTransaction = (data: { 
-    amount: number; 
-    category: Category | IncomeCategory; 
-    isEmergency: boolean; 
-    item: string; 
+  const handleAddTransaction = (data: {
+    amount: number;
+    category: Category | IncomeCategory;
+    isEmergency: boolean;
+    item: string;
     created_at?: string;
     transaction_type: 'expense' | 'income';
+    entry_mode?: import('./types').EntryMode;
   }) => {
     const settings = state.settings;
     if (!settings) return;
 
     const isIncome = data.transaction_type === 'income';
+    const entryMode = data.entry_mode || 'normal';
+    const isLive = entryMode === 'normal';
     let taxSaved = 0;
 
-    if (isIncome) {
-      // 💹 Income: add to total_budget (補血)
-      console.log('💹 收入補血:', data.item, '+$', data.amount);
-      saveSettings({ total_budget: settings.total_budget + data.amount });
-    } else {
-      // Virtual Luxury Tax Logic (expense only)
-      if (!data.isEmergency && settings.taxed_categories.includes(data.category as Category)) {
-        taxSaved = Math.floor(data.amount * 0.2);
-        console.log('💸 徵收 20% 奧侈稅:', taxSaved, '將存入撲滿');
+    // 補記 / 歷史匯入：純歷史資料，不對任何現在的狀態做副作用
+    if (isLive) {
+      if (isIncome) {
+        // 💹 Income: add to total_budget (補血)
+        console.log('💹 收入補血:', data.item, '+$', data.amount);
+        saveSettings({ total_budget: settings.total_budget + data.amount });
+      } else {
+        // Virtual Luxury Tax Logic (expense only, normal entries only)
+        if (!data.isEmergency && settings.taxed_categories.includes(data.category as Category)) {
+          taxSaved = Math.floor(data.amount * 0.2);
+          console.log('💸 徵收 20% 奧侈稅:', taxSaved, '將存入撲滿');
+        }
       }
+    } else {
+      console.log(`📚 ${entryMode === 'backfill' ? '補記' : '歷史匯入'}:`, data.item, data.transaction_type, '$', data.amount, '— 不影響現在的狀態');
     }
 
-    // Add to DB
+    // Add to DB（不論模式都寫進去）
     addTransaction({
       amount: data.amount,
       category: data.category,
@@ -236,9 +252,10 @@ export default function App() {
       item: data.item,
       created_at: data.created_at,
       transaction_type: data.transaction_type,
+      entry_mode: entryMode,
     });
 
-    // Update piggy bank if tax applies
+    // Update piggy bank if tax applies (only normal entries can trigger this)
     if (taxSaved > 0) {
       saveSettings({
         piggy_bank_saved: settings.piggy_bank_saved + taxSaved
@@ -290,10 +307,11 @@ export default function App() {
       }
 
       const today = new Date().toISOString().split('T')[0];
+      // 奧侈稅判斷只看 normal 紀錄，補記/歷史不會觸發
       const naughtyCategories = state.transactions
-        .filter(t => t.created_at.split('T')[0] === today && ['快樂水/零食', '娛樂社交'].includes(t.category))
+        .filter(t => (t.entry_mode || 'normal') === 'normal' && t.created_at.split('T')[0] === today && ['快樂水/零食', '娛樂社交'].includes(t.category))
         .map(t => t.category);
-      
+
       nextTaxedCategories = Array.from(new Set(naughtyCategories)) as Category[];
     }
 
@@ -309,8 +327,9 @@ export default function App() {
     // so calculateState treats it as a new day with fresh daily allowance
     const todayStr = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString();
+    // 只把「今天的 normal 紀錄」往前推一天；補記/歷史紀錄的日期是使用者設定的，不能動
     state.transactions
-      .filter(t => t.created_at.split('T')[0] === todayStr)
+      .filter(t => (t.entry_mode || 'normal') === 'normal' && t.created_at.split('T')[0] === todayStr)
       .forEach(t => updateTransaction(t.id, { created_at: yesterday }));
 
     const updatedSettings = getSettings();
