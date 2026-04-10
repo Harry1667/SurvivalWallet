@@ -78,6 +78,14 @@ export const initDB = async (): Promise<Database> => {
   } catch (_e) {
     // Column already exists, ignore
   }
+  // Migration: add entry_mode column for 補記 / 歷史匯入 功能
+  // 'normal' = 一般即時記錄；'backfill' = 補記；'historical' = 歷史匯入
+  try {
+    db.run(`ALTER TABLE transactions ADD COLUMN entry_mode TEXT NOT NULL DEFAULT 'normal'`);
+    console.log('✅ DB Migration: added entry_mode column');
+  } catch (_e) {
+    // Column already exists, ignore
+  }
   saveDB();
   return db;
 };
@@ -191,6 +199,7 @@ export const addTransaction = async (t: Partial<Transaction>) => {
   const id = crypto.randomUUID();
   const created_at = t.created_at || new Date().toISOString();
   const transaction_type = t.transaction_type || 'expense';
+  const entry_mode = t.entry_mode || 'normal';
   const values = [
     id,
     t.amount ?? 0,
@@ -198,14 +207,15 @@ export const addTransaction = async (t: Partial<Transaction>) => {
     t.is_emergency ? 1 : 0,
     t.item || '未分類消費',
     created_at,
-    transaction_type
+    transaction_type,
+    entry_mode
   ];
   db.run(
-    `INSERT INTO transactions (id, amount, category, is_emergency, item, created_at, transaction_type) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO transactions (id, amount, category, is_emergency, item, created_at, transaction_type, entry_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     values
   );
   await saveDB();
-  console.log('📝 已新增交易:', transaction_type, t.item || t.category, '$', t.amount);
+  console.log('📝 已新增交易:', transaction_type, entry_mode, t.item || t.category, '$', t.amount);
 };
 
 export const deleteTransaction = async (id: string) => {
@@ -226,6 +236,7 @@ export const updateTransaction = async (id: string, t: Partial<Transaction>) => 
   if (t.item !== undefined) { updates.push('item = ?'); values.push(t.item); }
   if (t.created_at !== undefined) { updates.push('created_at = ?'); values.push(t.created_at); }
   if (t.transaction_type !== undefined) { updates.push('transaction_type = ?'); values.push(t.transaction_type); }
+  if (t.entry_mode !== undefined) { updates.push('entry_mode = ?'); values.push(t.entry_mode); }
 
   if (updates.length > 0) {
     values.push(id);
@@ -252,6 +263,7 @@ export const getTransactions = (limit?: number): Transaction[] => {
       ...obj,
       is_emergency: !!obj.is_emergency,
       transaction_type: obj.transaction_type || 'expense',
+      entry_mode: obj.entry_mode || 'normal',
     };
   });
 };

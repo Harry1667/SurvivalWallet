@@ -15,6 +15,12 @@ export type IncomeCategory =
   | '被動生息'
   | '其他補血';
 
+// 紀錄輸入模式：
+// - 'normal'     一般即時記錄，會影響今日剩餘 / 撲滿 / streak / 奧侈稅 / total_budget
+// - 'backfill'   補記（最近忘了記），只進歷史，不影響任何現在的狀態
+// - 'historical' 歷史匯入（開發前的紀錄），只當歷史資料用，不影響任何現在的狀態
+export type EntryMode = 'normal' | 'backfill' | 'historical';
+
 export interface Transaction {
   id: string;
   amount: number;
@@ -23,6 +29,7 @@ export interface Transaction {
   item: string;
   created_at: string; // ISO string
   transaction_type: 'expense' | 'income';
+  entry_mode: EntryMode;
 }
 
 export interface UserSettings {
