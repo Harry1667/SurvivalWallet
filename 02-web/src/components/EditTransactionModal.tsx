@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Save, Utensils, Coffee, ShoppingBag, Bus, Gamepad2, BookOpen, Package } from 'lucide-react';
-import type { Transaction, Category, IncomeCategory } from '../types';
+import { X, Save, History, BookMarked, Utensils, Coffee, ShoppingBag, Bus, Gamepad2, BookOpen, Package } from 'lucide-react';
+import type { Transaction, Category, IncomeCategory, EntryMode } from '../types';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -31,6 +31,7 @@ export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }:
   const [category, setCategory] = useState<Category | IncomeCategory>(transaction.category);
   const [note, setNote] = useState(transaction.item || '');
   const [isEmergency, setIsEmergency] = useState(transaction.is_emergency);
+  const [entryMode, setEntryMode] = useState<EntryMode>(transaction.entry_mode || 'normal');
   const [recordTime, setRecordTime] = useState(() => {
     const d = new Date(transaction.created_at);
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -45,6 +46,7 @@ export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }:
       is_emergency: isEmergency,
       item: note.trim() || '未命名消費',
       created_at: recordTime ? new Date(recordTime).toISOString() : transaction.created_at,
+      entry_mode: entryMode,
     });
     onClose();
   };
@@ -67,13 +69,60 @@ export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }:
         className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl flex flex-col max-h-[calc(100dvh-2rem)] overflow-hidden"
       >
         <div className="flex justify-between items-center px-8 pt-8 pb-4 shrink-0 border-b border-slate-100">
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">編輯記錄</h2>
+          <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            編輯記錄
+            {entryMode === 'backfill' && <History size={16} className="text-amber-500" />}
+            {entryMode === 'historical' && <BookMarked size={16} className="text-slate-500" />}
+          </h2>
           <button onClick={onClose} className="p-2 bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
             <X size={20} />
           </button>
         </div>
 
         <div className="p-8 pt-6 space-y-6 overflow-y-auto">
+        {/* Entry Mode Selector */}
+        <div>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">紀錄類型</label>
+          <div className="flex gap-1 bg-slate-50 border border-slate-100 rounded-2xl p-1">
+            <button
+              onClick={() => setEntryMode('normal')}
+              className={cn(
+                "flex-1 py-2 rounded-xl font-black text-[11px] tracking-wide transition-all",
+                entryMode === 'normal' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+              )}
+            >
+              ⚡ 一般
+            </button>
+            <button
+              onClick={() => setEntryMode('backfill')}
+              className={cn(
+                "flex-1 py-2 rounded-xl font-black text-[11px] tracking-wide transition-all flex items-center justify-center gap-1",
+                entryMode === 'backfill' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+              )}
+            >
+              <History size={12} />
+              補記
+            </button>
+            <button
+              onClick={() => setEntryMode('historical')}
+              className={cn(
+                "flex-1 py-2 rounded-xl font-black text-[11px] tracking-wide transition-all flex items-center justify-center gap-1",
+                entryMode === 'historical' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+              )}
+            >
+              <BookMarked size={12} />
+              歷史
+            </button>
+          </div>
+          {entryMode !== 'normal' && (
+            <p className="text-[10px] font-bold text-slate-500 mt-2 leading-relaxed px-1">
+              {entryMode === 'backfill'
+                ? '🕒 補記：不影響今日剩餘 / 撲滿 / 連擊 / 奧侈稅'
+                : '📚 歷史：純歷史資料，不影響任何現在的數字'}
+            </p>
+          )}
+        </div>
+
         {/* Amount */}
         <div>
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">金額</label>
