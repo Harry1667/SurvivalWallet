@@ -143,7 +143,7 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
             </Toast>
           )}
           {settings.taxed_categories.length > 0 && (
-            <Toast key="tax" colorClass="bg-slate-800/95 border border-slate-700 text-white text-on-accent shadow-slate-900/40">
+            <Toast key="tax" colorClass="bg-slate-800/95 border border-slate-700 text-white shadow-slate-900/40">
                <div className="p-2 bg-white/20 rounded-xl shadow-sm">
                 <ShieldAlert size={20} />
               </div>

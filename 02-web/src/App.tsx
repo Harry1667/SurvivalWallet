@@ -345,7 +345,7 @@ export default function App() {
   };
 
   if (!dbReady) return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white text-on-accent font-black text-2xl tracking-tighter">
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white font-black text-2xl tracking-tighter">
       LOADING SURVIVAL ENGINE...
     </div>
   );

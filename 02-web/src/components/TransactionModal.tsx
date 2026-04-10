@@ -283,7 +283,7 @@ export const TransactionModal = ({
                 amount && category
                   ? transactionType === 'income'
                     ? 'bg-emerald-600 text-white text-on-accent shadow-emerald-200'
-                    : isEmergency ? 'bg-red-600 text-white text-on-accent shadow-red-200' : 'bg-slate-900 text-white text-on-accent shadow-slate-200'
+                    : isEmergency ? 'bg-red-600 text-white text-on-accent shadow-red-200' : 'bg-slate-900 text-white shadow-slate-200'
                   : 'bg-slate-100 text-slate-300 cursor-not-allowed'
               )}
             >

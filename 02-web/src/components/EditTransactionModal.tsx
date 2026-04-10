@@ -164,7 +164,7 @@ export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }:
           <button
             onClick={handleSave}
             disabled={!amount || !category}
-            className="flex-1 py-4 bg-slate-900 text-white text-on-accent rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-200 disabled:opacity-40"
+            className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-200 disabled:opacity-40"
           >
             <Save size={18} />
             儲存
