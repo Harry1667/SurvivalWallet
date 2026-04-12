@@ -41,8 +41,15 @@ export const Onboarding = ({ onComplete }: Props) => {
       piggy_bank_goal: goal,
       piggy_bank_saved: 0,
       current_streak: 0,
-      last_login_date: new Date().toISOString().split('T')[0],
-      taxed_categories: []
+      longest_streak: 0,
+      total_perfect_days: 0,
+      last_login_date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
+      taxed_categories: [],
+      luxury_tax_rate: 0.2,
+      overspend_threshold: 0.5,
+      streak_reward_rate: 0.1,
+      currency_symbol: '$',
+      week_start_day: 1,
     };
 
     console.log('🏁 啟動生存計畫:', settings);

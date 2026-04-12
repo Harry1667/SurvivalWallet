@@ -48,10 +48,10 @@ const Toast = ({ children, colorClass }: { children: React.ReactNode, colorClass
 };
 
 // 計數器滾動動畫元件
-const AnimatedNumber = ({ value, className }: { value: number; className?: string }) => {
+const AnimatedNumber = ({ value, className, prefix = '$' }: { value: number; className?: string; prefix?: string }) => {
   const motionValue = useMotionValue(0);
   const spring = useSpring(motionValue, { stiffness: 80, damping: 20 });
-  const display = useTransform(spring, (v) => `$${Math.floor(v)}`);
+  const display = useTransform(spring, (v) => `${prefix}${Math.floor(v)}`);
 
   useEffect(() => {
     motionValue.set(value);
@@ -88,10 +88,17 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
   last7DaysStart.setDate(last7DaysStart.getDate() - recentDays);
   
   const recentNormalSpend = transactions
-    .filter(t => !t.is_emergency && new Date(t.created_at) >= last7DaysStart)
+    .filter(t => !t.is_emergency && t.transaction_type === 'expense' && new Date(t.created_at) >= last7DaysStart)
     .reduce((acc, t) => acc + t.amount, 0);
-  
-  const totalRemainingInSettings = settings.total_budget - settings.fixed_expenses - transactions.filter(t => !t.is_emergency).reduce((acc, t) => acc + t.amount, 0);
+
+  // 剩餘預算 = 設定基準 + 累計收入 − 固定支出 − 非緊急支出
+  const totalIncomeAll = transactions
+    .filter(t => t.transaction_type === 'income')
+    .reduce((acc, t) => acc + t.amount, 0);
+  const totalNormalSpendAll = transactions
+    .filter(t => !t.is_emergency && t.transaction_type === 'expense')
+    .reduce((acc, t) => acc + t.amount, 0);
+  const totalRemainingInSettings = settings.total_budget + totalIncomeAll - settings.fixed_expenses - totalNormalSpendAll;
   
   let isBankruptcyRisk = false;
   if (recentNormalSpend > 0) {
@@ -108,8 +115,11 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
 
   // Category distribution for today
   const todayTransactions = transactions.filter(t => {
-    const today = new Date().toISOString().split('T')[0];
-    return t.created_at.split('T')[0] === today;
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const txDate = new Date(t.created_at);
+    const txLocal = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}-${String(txDate.getDate()).padStart(2, '0')}`;
+    return txLocal === today;
   });
 
   const categoryShares = CATEGORIES.map(cat => ({
@@ -191,7 +201,7 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
               status === 'danger' ? 'text-red-600 animate-shake' : 'text-slate-900'
             )}
           >
-            <AnimatedNumber value={Math.floor(currentDailyBalance)} />
+            <AnimatedNumber value={Math.floor(currentDailyBalance)} prefix={settings.currency_symbol || '$'} />
           </motion.h1>
 
           {/* Today's Expense Progress */}
@@ -256,6 +266,7 @@ export const Home = ({ state, onOpenRecord, onOpenSettings, onRefresh }: Props) 
           <EditTransactionModal
             transaction={editingTransaction}
             onClose={() => setEditingTransaction(null)}
+            currencySymbol={settings.currency_symbol}
             onSave={(id, data) => {
               updateTransaction(id, data);
               onRefresh();

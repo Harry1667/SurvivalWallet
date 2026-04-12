@@ -99,11 +99,11 @@ export const Fund = ({ state, onOpenSettings }: Props) => {
               className="flex flex-col items-center text-center"
             >
               <span className="text-4xl font-black tracking-tighter text-blue-600 drop-shadow-sm">
-                ${Math.floor(settings.piggy_bank_saved)}
+                {settings.currency_symbol || '$'}{Math.floor(settings.piggy_bank_saved)}
               </span>
               <div className="w-12 h-0.5 bg-slate-200 my-2 rounded-full" />
               <span className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-0.5">目標</span>
-              <span className="text-lg font-bold text-slate-500">${settings.piggy_bank_goal}</span>
+              <span className="text-lg font-bold text-slate-500">{settings.currency_symbol || '$'}{settings.piggy_bank_goal}</span>
             </motion.div>
           </div>
         </div>

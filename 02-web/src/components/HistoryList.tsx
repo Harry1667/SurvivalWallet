@@ -26,7 +26,7 @@ interface Props {
   onRefresh: () => void;
 }
 
-const TransactionCard = ({ t, isTaxed, onRefresh }: { t: Transaction; isTaxed: boolean; onRefresh: () => void }) => {
+const TransactionCard = ({ t, isTaxed, onRefresh, currencySymbol = '$' }: { t: Transaction; isTaxed: boolean; onRefresh: () => void; currencySymbol?: string }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const emoji = CATEGORIES_EMOJI[t.category as Category] || '📦';
@@ -88,7 +88,7 @@ const TransactionCard = ({ t, isTaxed, onRefresh }: { t: Transaction; isTaxed: b
             <div className="flex items-center gap-1.5 justify-end">
               {t.is_emergency && <AlertTriangle size={14} className="text-red-500" strokeWidth={3} />}
               <p className={`font-black text-xl tracking-tight ${t.transaction_type === 'income' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                {t.transaction_type === 'income' ? '+' : '-'}${t.amount}
+                {t.transaction_type === 'income' ? '+' : '-'}{currencySymbol}{t.amount}
               </p>
             </div>
             {isTaxed && (
@@ -145,6 +145,7 @@ const TransactionCard = ({ t, isTaxed, onRefresh }: { t: Transaction; isTaxed: b
             onClose={() => setEditing(false)}
             onSave={handleSave}
             onDelete={handleDelete}
+            currencySymbol={currencySymbol}
           />
         )}
       </AnimatePresence>
@@ -157,7 +158,8 @@ export const HistoryList = ({ state, onRefresh }: Props) => {
 
   // Group transactions by date
   const grouped = transactions.reduce((groups, t) => {
-    const date = t.created_at.split('T')[0];
+    const td = new Date(t.created_at);
+    const date = `${td.getFullYear()}-${String(td.getMonth() + 1).padStart(2, '0')}-${String(td.getDate()).padStart(2, '0')}`;
     if (!groups[date]) groups[date] = [];
     groups[date].push(t);
     return groups;
@@ -166,8 +168,10 @@ export const HistoryList = ({ state, onRefresh }: Props) => {
   const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
   const getRelativeDateLabel = (dateStr: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const nowD = new Date();
+    const today = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}-${String(nowD.getDate()).padStart(2, '0')}`;
+    const yD = new Date(Date.now() - 86400000);
+    const yesterday = `${yD.getFullYear()}-${String(yD.getMonth() + 1).padStart(2, '0')}-${String(yD.getDate()).padStart(2, '0')}`;
     if (dateStr === today) return '今天';
     if (dateStr === yesterday) return '昨天';
     return new Date(dateStr).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric', weekday: 'short' });
@@ -211,6 +215,7 @@ export const HistoryList = ({ state, onRefresh }: Props) => {
                       t={t}
                       isTaxed={!!(settings?.taxed_categories?.includes(t.category as Category) && !t.is_emergency)}
                       onRefresh={onRefresh}
+                      currencySymbol={settings?.currency_symbol}
                     />
                     </motion.div>
                   ))}

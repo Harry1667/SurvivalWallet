@@ -86,6 +86,50 @@ export const initDB = async (): Promise<Database> => {
   } catch {
     // Column already exists, ignore
   }
+  // Migration: 為 fund_records 加上結構化 kind 與 source_category
+  //   kind: 'tax' | 'surplus' | 'streak_reward' | 'penalty' | 'manual'
+  //   source_category: 稅從哪個消費類別收的
+  try {
+    db.run(`ALTER TABLE fund_records ADD COLUMN kind TEXT NOT NULL DEFAULT 'surplus'`);
+    console.log('✅ DB Migration: added fund_records.kind column');
+    // 對舊資料做一次 best-effort 回填：用 reason 文字判斷 kind
+    db.run(`UPDATE fund_records SET kind = 'tax' WHERE reason LIKE '%獻祯%'`);
+    db.run(`UPDATE fund_records SET kind = 'streak_reward' WHERE reason LIKE '%連擊%'`);
+    db.run(`UPDATE fund_records SET kind = 'surplus' WHERE reason LIKE '%節餘%'`);
+  } catch {
+    // Column already exists, ignore
+  }
+  try {
+    db.run(`ALTER TABLE fund_records ADD COLUMN source_category TEXT`);
+    console.log('✅ DB Migration: added fund_records.source_category column');
+  } catch {
+    // Column already exists, ignore
+  }
+  // Migration: 加上歷史最長連擊 / 累計完美日欄位
+  try {
+    db.run(`ALTER TABLE user_settings ADD COLUMN longest_streak INTEGER NOT NULL DEFAULT 0`);
+    console.log('✅ DB Migration: added longest_streak column');
+  } catch {
+    // Column already exists, ignore
+  }
+  try {
+    db.run(`ALTER TABLE user_settings ADD COLUMN total_perfect_days INTEGER NOT NULL DEFAULT 0`);
+    console.log('✅ DB Migration: added total_perfect_days column');
+  } catch {
+    // Column already exists, ignore
+  }
+  // Migration: 可調遊戲化參數 + 體驗設定
+  const settingsMigrations: [string, string][] = [
+    [`ALTER TABLE user_settings ADD COLUMN luxury_tax_rate REAL NOT NULL DEFAULT 0.2`, 'luxury_tax_rate'],
+    [`ALTER TABLE user_settings ADD COLUMN overspend_threshold REAL NOT NULL DEFAULT 0.5`, 'overspend_threshold'],
+    [`ALTER TABLE user_settings ADD COLUMN streak_reward_rate REAL NOT NULL DEFAULT 0.1`, 'streak_reward_rate'],
+    [`ALTER TABLE user_settings ADD COLUMN currency_symbol TEXT NOT NULL DEFAULT '$'`, 'currency_symbol'],
+    [`ALTER TABLE user_settings ADD COLUMN week_start_day INTEGER NOT NULL DEFAULT 1`, 'week_start_day'],
+  ];
+  for (const [sql, col] of settingsMigrations) {
+    try { db.run(sql); console.log(`✅ DB Migration: added ${col} column`); } catch { /* exists */ }
+  }
+
   saveDB();
   return db;
 };
@@ -109,10 +153,20 @@ export const getFundRecords = () => {
   }
 };
 
-export const addFundRecord = async (amount: number, reason: string) => {
+export type FundRecordKind = 'tax' | 'surplus' | 'streak_reward' | 'penalty' | 'manual';
+
+export const addFundRecord = async (
+  amount: number,
+  reason: string,
+  kind: FundRecordKind = 'surplus',
+  source_category?: string | null
+) => {
   if (!db) return;
   const id = crypto.randomUUID();
-  db.run('INSERT INTO fund_records (id, amount, reason) VALUES (?, ?, ?)', [id, amount, reason]);
+  db.run(
+    'INSERT INTO fund_records (id, amount, reason, kind, source_category) VALUES (?, ?, ?, ?, ?)',
+    [id, amount, reason, kind, source_category ?? null]
+  );
   await saveDB();
 };
 
@@ -150,7 +204,12 @@ export const getSettings = (): UserSettings | null => {
 
   return {
     ...obj,
-    taxed_categories: JSON.parse(obj.taxed_categories_json || '[]')
+    taxed_categories: JSON.parse(obj.taxed_categories_json || '[]'),
+    luxury_tax_rate: obj.luxury_tax_rate ?? 0.2,
+    overspend_threshold: obj.overspend_threshold ?? 0.5,
+    streak_reward_rate: obj.streak_reward_rate ?? 0.1,
+    currency_symbol: obj.currency_symbol || '$',
+    week_start_day: obj.week_start_day ?? 1,
   };
 };
 
@@ -173,7 +232,7 @@ export const saveSettings = async (settings: Partial<UserSettings>) => {
     db.run(`UPDATE user_settings SET ${finalSetClause} WHERE id = 1`, finalValues);
   } else if (Object.keys(settings).length > 0) {
     // Insert new
-    const keys = ['id', 'total_budget', 'fixed_expenses', 'daily_base_budget', 'piggy_bank_name', 'piggy_bank_goal', 'piggy_bank_saved', 'current_daily_balance', 'current_streak', 'last_login_date', 'taxed_categories_json'];
+    const keys = ['id', 'total_budget', 'fixed_expenses', 'daily_base_budget', 'piggy_bank_name', 'piggy_bank_goal', 'piggy_bank_saved', 'current_daily_balance', 'current_streak', 'longest_streak', 'total_perfect_days', 'last_login_date', 'taxed_categories_json', 'luxury_tax_rate', 'overspend_threshold', 'streak_reward_rate', 'currency_symbol', 'week_start_day'];
     const placeholders = keys.map(() => '?').join(', ');
     const s = settings as any;
     const values = [
@@ -186,8 +245,15 @@ export const saveSettings = async (settings: Partial<UserSettings>) => {
       s.piggy_bank_saved || 0,
       s.current_daily_balance || 0,
       s.current_streak || 0,
-      s.last_login_date || new Date().toISOString().split('T')[0],
-      JSON.stringify(s.taxed_categories || [])
+      s.longest_streak || 0,
+      s.total_perfect_days || 0,
+      s.last_login_date || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
+      JSON.stringify(s.taxed_categories || []),
+      s.luxury_tax_rate ?? 0.2,
+      s.overspend_threshold ?? 0.5,
+      s.streak_reward_rate ?? 0.1,
+      s.currency_symbol || '$',
+      s.week_start_day ?? 1,
     ];
     db.run(`INSERT INTO user_settings (${keys.join(', ')}) VALUES (${placeholders})`, values);
   }

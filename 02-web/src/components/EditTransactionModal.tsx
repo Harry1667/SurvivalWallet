@@ -24,9 +24,10 @@ interface Props {
   onClose: () => void;
   onSave: (id: string, data: Partial<Transaction>) => void;
   onDelete: (id: string) => void;
+  currencySymbol?: string;
 }
 
-export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }: Props) => {
+export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete, currencySymbol = '$' }: Props) => {
   const [amount, setAmount] = useState(String(transaction.amount));
   const [category, setCategory] = useState<Category | IncomeCategory>(transaction.category);
   const [note, setNote] = useState(transaction.item || '');
@@ -127,7 +128,7 @@ export const EditTransactionModal = ({ transaction, onClose, onSave, onDelete }:
         <div>
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">金額</label>
           <div className="flex items-baseline gap-2 border-b-2 border-slate-100 focus-within:border-slate-900 transition-colors py-1">
-            <span className="text-2xl font-black text-slate-300">$</span>
+            <span className="text-2xl font-black text-slate-300">{currencySymbol}</span>
             <input
               type="number"
               inputMode="numeric"

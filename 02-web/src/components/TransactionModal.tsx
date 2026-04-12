@@ -59,12 +59,13 @@ interface Props {
   taxedCategories: Category[];
   piggyBankSaved?: number;
   onWithdrawFund?: (amount: number) => void;
+  currencySymbol?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export const TransactionModal = ({
   isOpen, onClose, onConfirm, taxedCategories,
-  piggyBankSaved = 0, onWithdrawFund
+  piggyBankSaved = 0, onWithdrawFund, currencySymbol = '$'
 }: Props) => {
   const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
   // 補記模式：normal=即時記、backfill=最近忘了補記、historical=匯入很早以前的歷史
@@ -265,7 +266,7 @@ export const TransactionModal = ({
                 "flex items-baseline gap-2 border-b-2 transition-colors py-1",
                 transactionType === 'income' ? 'border-emerald-200 focus-within:border-emerald-600' : 'border-slate-100 focus-within:border-slate-900'
               )}>
-                <span className={cn("text-2xl font-black", transactionType === 'income' ? 'text-emerald-300' : 'text-slate-300')}>$</span>
+                <span className={cn("text-2xl font-black", transactionType === 'income' ? 'text-emerald-300' : 'text-slate-300')}>{currencySymbol}</span>
                 <input
                   autoFocus
                   type="number"
@@ -404,7 +405,7 @@ export const TransactionModal = ({
             {onWithdrawFund && piggyBankSaved > 0 && (
               <button
                 onClick={() => {
-                  const val = prompt(`從夢想基金拿出多少？\n目前基金餘額：$${Math.floor(piggyBankSaved)}`);
+                  const val = prompt(`從夢想基金拿出多少？\n目前基金餘額：${currencySymbol}${Math.floor(piggyBankSaved)}`);
                   const num = Number(val);
                   if (val && !isNaN(num) && num > 0) {
                     onWithdrawFund(num);
@@ -413,7 +414,7 @@ export const TransactionModal = ({
                 }}
                 className="w-full py-4 rounded-[2rem] font-bold text-sm border-2 border-slate-200 text-slate-500 bg-transparent hover:bg-slate-50 active:scale-95 transition-all"
               >
-                💰 從夢想基金拿出（餘 ${Math.floor(piggyBankSaved)}）
+                💰 從夢想基金拿出（餘 {currencySymbol}{Math.floor(piggyBankSaved)}）
               </button>
             )}
           </div>

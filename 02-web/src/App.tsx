@@ -16,6 +16,19 @@ import { twMerge } from 'tailwind-merge';
 
 export type Tab = 'details' | 'fund' | 'home' | 'history' | 'report';
 
+/** 取得本地日期字串 YYYY-MM-DD，避免 toISOString() 的 UTC 時區偏移 */
+function toLocalDateStr(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** 從 ISO 時間字串取得本地日期 YYYY-MM-DD */
+function localDateOf(isoStr: string): string {
+  return toLocalDateStr(new Date(isoStr));
+}
+
 const TAB_ORDER: Tab[] = ['details', 'fund', 'home', 'history', 'report'];
 
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -57,7 +70,7 @@ export default function App() {
         const transactions = getTransactions();
         
         if (settings && settings.last_login_date) {
-          const todayStr = new Date().toISOString().split('T')[0];
+          const todayStr = toLocalDateStr();
           if (settings.last_login_date < todayStr) {
             const hasChanged = runAutoRollover(settings, transactions, todayStr);
             if (hasChanged) {
@@ -96,24 +109,29 @@ export default function App() {
       const settleStr = currDateStr;
       const monthStr = settleStr.substring(0, 7);
 
-      // Calc allowance for settleStr
+      // Calc allowance for settleStr（只算支出；收入另外加回預算池）
       const monthSpentEmergency = liveTx
-        .filter(t => t.is_emergency && t.created_at.startsWith(monthStr) && t.created_at.split('T')[0] <= settleStr)
+        .filter(t => t.is_emergency && t.transaction_type === 'expense' && localDateOf(t.created_at).startsWith(monthStr) && localDateOf(t.created_at) <= settleStr)
         .reduce((acc, t) => acc + t.amount, 0);
 
-      const netMonthly = s.total_budget - s.fixed_expenses - monthSpentEmergency;
+      // 當月截至 settleStr 為止已入帳的收入（normal 內的）
+      const monthIncomeBySettle = liveTx
+        .filter(t => t.transaction_type === 'income' && localDateOf(t.created_at).startsWith(monthStr) && localDateOf(t.created_at) <= settleStr)
+        .reduce((acc, t) => acc + t.amount, 0);
+
+      const netMonthly = s.total_budget + monthIncomeBySettle - s.fixed_expenses - monthSpentEmergency;
       const [year, month, day] = settleStr.split('-').map(Number);
       const daysInMonth = new Date(year, month, 0).getDate();
       const remainingDays = daysInMonth - day + 1;
 
       const normalSpentBeforeSettle = liveTx
-        .filter(t => !t.is_emergency && t.created_at.startsWith(monthStr) && t.created_at.split('T')[0] < settleStr)
+        .filter(t => !t.is_emergency && t.transaction_type === 'expense' && localDateOf(t.created_at).startsWith(monthStr) && localDateOf(t.created_at) < settleStr)
         .reduce((acc, t) => acc + t.amount, 0);
 
       const settleAllowance = Math.max(0, (netMonthly - normalSpentBeforeSettle) / remainingDays);
 
       const daySpend = liveTx
-        .filter(t => !t.is_emergency && t.created_at.split('T')[0] === settleStr)
+        .filter(t => !t.is_emergency && t.transaction_type === 'expense' && localDateOf(t.created_at) === settleStr)
         .reduce((acc, t) => acc + t.amount, 0);
 
       const surplus = settleAllowance - daySpend;
@@ -123,31 +141,36 @@ export default function App() {
         const surplusInt = Math.floor(surplus);
         s.piggy_bank_saved += surplusInt;
         s.current_streak += 1;
+        s.total_perfect_days = (s.total_perfect_days || 0) + 1;
+        if (s.current_streak > (s.longest_streak || 0)) {
+          s.longest_streak = s.current_streak;
+        }
         if (surplusInt > 0) {
-          addFundRecord(surplusInt, `結算 ${settleStr} 節餘存入`);
+          addFundRecord(surplusInt, `結算 ${settleStr} 節餘存入`, 'surplus');
         }
         if (s.current_streak % 7 === 0 && s.current_streak > 0) {
-          const reward = Math.floor(settleAllowance * 7 * 0.1);
+          const reward = Math.floor(settleAllowance * 7 * (s.streak_reward_rate ?? 0.1));
           s.piggy_bank_saved += reward;
-          addFundRecord(reward, `🏆 連擊 ${s.current_streak} 天附加獎勵 (${settleStr})`);
+          addFundRecord(reward, `🏆 連擊 ${s.current_streak} 天附加獎勵 (${settleStr})`, 'streak_reward');
         }
       } else {
         s.current_streak = 0;
         const overspendAmount = Math.abs(surplus);
-        if (overspendAmount > settleAllowance * 0.5) {
+        if (overspendAmount > settleAllowance * (s.overspend_threshold ?? 0.5)) {
            const penalty = Math.floor(overspendAmount * 0.1);
            s.total_budget -= penalty;
+           addFundRecord(-penalty, `☠️ 嚴重超支罰金 (${settleStr})`, 'penalty');
         }
         // 奧侈稅判斷也只看正常紀錄，不被補記/歷史汙染
         const naughtyCategories = liveTx
-          .filter(t => t.created_at.split('T')[0] === settleStr && ['快樂水/零食', '娛樂社交'].includes(t.category))
+          .filter(t => localDateOf(t.created_at) === settleStr && ['快樂水/零食', '娛樂社交'].includes(t.category))
           .map(t => t.category);
         s.taxed_categories = Array.from(new Set(naughtyCategories)) as Category[];
       }
       
-      // Advance exactly one day
+      // Advance exactly one day（用 local date 避免 UTC 偏移導致迴圈卡住）
       const d = new Date(year, month - 1, day + 1);
-      currDateStr = d.toISOString().split('T')[0];
+      currDateStr = toLocalDateStr(d);
       changed = true;
     }
     
@@ -163,7 +186,7 @@ export default function App() {
     if (!settings) return { settings, transactions, currentDailyBalance: 0, todayAllowance: 0 };
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = toLocalDateStr(now);
     const monthStr = todayStr.substring(0, 7);
 
     // 補記 (backfill) = 真的花掉的錢，要進入本月預算池影響今日剩餘
@@ -172,28 +195,33 @@ export default function App() {
     // 注意：runAutoRollover 仍然只看 normal，避免回頭重算過去那天的 streak / 撲滿
     const liveTx = transactions.filter(t => (t.entry_mode || 'normal') !== 'historical');
 
-    // Emergency total THIS MONTH
+    // Emergency total THIS MONTH（只算支出）
     const monthSpentEmergency = liveTx
-      .filter(t => t.is_emergency && t.created_at.startsWith(monthStr))
+      .filter(t => t.is_emergency && t.transaction_type === 'expense' && localDateOf(t.created_at).startsWith(monthStr))
+      .reduce((acc, t) => acc + t.amount, 0);
+
+    // 本月收入（normal + backfill），要加回本月預算池
+    const monthIncome = liveTx
+      .filter(t => t.transaction_type === 'income' && localDateOf(t.created_at).startsWith(monthStr))
       .reduce((acc, t) => acc + t.amount, 0);
 
     // Remaining budget for distribution
-    const netMonthly = settings.total_budget - settings.fixed_expenses - monthSpentEmergency;
+    const netMonthly = settings.total_budget + monthIncome - settings.fixed_expenses - monthSpentEmergency;
 
     // Days remaining
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const remainingDays = daysInMonth - now.getDate() + 1;
 
-    // Daily allowance for TODAY
+    // Daily allowance for TODAY（只算支出，收入已加進 netMonthly）
     const normalSpentBeforeToday = liveTx
-      .filter(t => !t.is_emergency && t.created_at.startsWith(monthStr) && t.created_at.split('T')[0] !== todayStr)
+      .filter(t => !t.is_emergency && t.transaction_type === 'expense' && localDateOf(t.created_at).startsWith(monthStr) && localDateOf(t.created_at) !== todayStr)
       .reduce((acc, t) => acc + t.amount, 0);
 
     const todayAllowance = Math.max(0, (netMonthly - normalSpentBeforeToday) / remainingDays);
 
-    // Today's balance
+    // Today's balance（只算支出）
     const todaySpentNormal = liveTx
-      .filter(t => !t.is_emergency && t.created_at.split('T')[0] === todayStr)
+      .filter(t => !t.is_emergency && t.transaction_type === 'expense' && localDateOf(t.created_at) === todayStr)
       .reduce((acc, t) => acc + t.amount, 0);
 
     const currentDailyBalance = todayAllowance - todaySpentNormal;
@@ -235,19 +263,20 @@ export default function App() {
     let taxSaved = 0;
 
     if (isIncome) {
-      // 💹 收入補血：normal + backfill 都會 += total_budget
-      // (補記薪水也是真的進帳，要進入本月可用)
+      // 💹 收入補血：normal + backfill 會進入本月預算池（由 calculateState 聚合時加回）
+      // 注意：total_budget 是使用者設定的「每月生活費基準」，屬於設定值，
+      // 絕對不要在這裡動它 — 否則 Details 的「每月總生活費」會被灌水。
       if (affectsBudget) {
-        console.log(`💹 收入補血 [${entryMode}]:`, data.item, '+$', data.amount);
-        saveSettings({ total_budget: settings.total_budget + data.amount });
+        console.log(`💹 收入補血 [${entryMode}]:`, data.item, '+$', data.amount, '→ 進入本月預算池');
       } else {
-        console.log('📚 歷史收入（純歷史，不影響 total_budget）:', data.item, '+$', data.amount);
+        console.log('📚 歷史收入（純歷史，不影響本月預算池）:', data.item, '+$', data.amount);
       }
     } else {
       // 奧侈稅只有 normal 紀錄會觸發（補記不要回頭被過去的稅況罰）
-      if (isNormalLive && !data.isEmergency && settings.taxed_categories.includes(data.category as Category)) {
-        taxSaved = Math.floor(data.amount * 0.2);
-        console.log('💸 徵收 20% 奧侈稅:', taxSaved, '將存入撲滿');
+      const taxRate = settings.luxury_tax_rate ?? 0.2;
+      if (isNormalLive && !data.isEmergency && taxRate > 0 && settings.taxed_categories.includes(data.category as Category)) {
+        taxSaved = Math.floor(data.amount * taxRate);
+        console.log(`💸 徵收 ${Math.round(taxRate * 100)}% 奧侈稅:`, taxSaved, '將存入撲滿');
       } else if (entryMode === 'backfill') {
         console.log('🕒 補記支出:', data.item, '$', data.amount, '— 進入本月預算池但不觸發奧侈稅');
       } else if (entryMode === 'historical') {
@@ -271,7 +300,12 @@ export default function App() {
       saveSettings({
         piggy_bank_saved: settings.piggy_bank_saved + taxSaved
       });
-      addFundRecord(taxSaved, `來自「${data.item || data.category}」的獻祯點數`);
+      addFundRecord(
+        taxSaved,
+        `來自「${data.item || data.category}」的獻祯點數`,
+        'tax',
+        data.category as string
+      );
     }
 
     // Refresh state
@@ -293,34 +327,39 @@ export default function App() {
     let newStreak = s.current_streak;
     let newSaved = s.piggy_bank_saved;
     let newTotalBudget = s.total_budget;
+    let newLongestStreak = s.longest_streak || 0;
+    let newTotalPerfectDays = s.total_perfect_days || 0;
     let nextTaxedCategories: Category[] = [];
 
     if (!isOverspent) {
       const surplusInt = Math.floor(surplus);
       newSaved += surplusInt;
       newStreak += 1;
+      newTotalPerfectDays += 1;
+      if (newStreak > newLongestStreak) newLongestStreak = newStreak;
       if (surplusInt > 0) {
-        addFundRecord(surplusInt, `今日節餘自動存入`);
+        addFundRecord(surplusInt, `今日節餘自動存入`, 'surplus');
       }
-      
+
       if (newStreak % 7 === 0 && newStreak > 0) {
-        const reward = Math.floor(allowance * 7 * 0.1);
+        const reward = Math.floor(allowance * 7 * (s.streak_reward_rate ?? 0.1));
         newSaved += reward;
-        addFundRecord(reward, `🏆 連擊 ${newStreak} 天額外獎勵`);
-        alert(`🏆 達成 ${newStreak} 天連擊！獲贈 $${reward} 夢想獎金！`);
+        addFundRecord(reward, `🏆 連擊 ${newStreak} 天額外獎勵`, 'streak_reward');
+        alert(`🏆 達成 ${newStreak} 天連擊！獲贈 ${s.currency_symbol || '$'}${reward} 夢想獎金！`);
       }
     } else {
       newStreak = 0;
-      if (overspendAmount > allowance * 0.5) { 
+      if (overspendAmount > allowance * (s.overspend_threshold ?? 0.5)) {
         const penalty = Math.floor(overspendAmount * 0.1);
         newTotalBudget -= penalty;
-        alert(`☠️ 嚴重超支！額外從月預算沒收 $${penalty} 罰金。`);
+        addFundRecord(-penalty, `☠️ 嚴重超支罰金`, 'penalty');
+        alert(`☠️ 嚴重超支！額外從月預算沒收 ${s.currency_symbol || '$'}${penalty} 罰金。`);
       }
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateStr();
       // 奧侈稅判斷只看 normal 紀錄，補記/歷史不會觸發
       const naughtyCategories = state.transactions
-        .filter(t => (t.entry_mode || 'normal') === 'normal' && t.created_at.split('T')[0] === today && ['快樂水/零食', '娛樂社交'].includes(t.category))
+        .filter(t => (t.entry_mode || 'normal') === 'normal' && localDateOf(t.created_at) === today && ['快樂水/零食', '娛樂社交'].includes(t.category))
         .map(t => t.category);
 
       nextTaxedCategories = Array.from(new Set(naughtyCategories)) as Category[];
@@ -329,18 +368,20 @@ export default function App() {
     saveSettings({
       piggy_bank_saved: newSaved,
       current_streak: newStreak,
+      longest_streak: newLongestStreak,
+      total_perfect_days: newTotalPerfectDays,
       total_budget: newTotalBudget,
       taxed_categories: nextTaxedCategories,
-      last_login_date: new Date().toISOString().split('T')[0]
+      last_login_date: toLocalDateStr()
     });
 
     // 🕒 Simulate day rollover: backdate today's transactions to yesterday
     // so calculateState treats it as a new day with fresh daily allowance
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = toLocalDateStr();
     const yesterday = new Date(Date.now() - 86400000).toISOString();
     // 只把「今天的 normal 紀錄」往前推一天；補記/歷史紀錄的日期是使用者設定的，不能動
     state.transactions
-      .filter(t => (t.entry_mode || 'normal') === 'normal' && t.created_at.split('T')[0] === todayStr)
+      .filter(t => (t.entry_mode || 'normal') === 'normal' && localDateOf(t.created_at) === todayStr)
       .forEach(t => updateTransaction(t.id, { created_at: yesterday }));
 
     const updatedSettings = getSettings();
@@ -348,7 +389,7 @@ export default function App() {
     setState(calculateState(updatedSettings, updatedTransactions));
     
     if (!isOverspent) {
-      alert(`🎉 結算完成！今日節餘 $${Math.floor(surplus)} 已存入撲滿。`);
+      alert(`🎉 結算完成！今日節餘 ${s.currency_symbol || '$'}${Math.floor(surplus)} 已存入撲滿。`);
     }
   };
 
@@ -367,7 +408,7 @@ export default function App() {
     }
 
     const roundedAmount = Math.floor(amount);
-    addFundRecord(-roundedAmount, '手動從基金拿出');
+    addFundRecord(-roundedAmount, '手動從基金拿出', 'manual');
     saveSettings({
       piggy_bank_saved: s.piggy_bank_saved - roundedAmount
     });
@@ -479,12 +520,13 @@ export default function App() {
           <AnimatePresence>
             {isModalOpen && (
               <TransactionModal
-                isOpen={isModalOpen} 
+                isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onConfirm={handleAddTransaction}
                 taxedCategories={state.settings.taxed_categories}
                 piggyBankSaved={state.settings.piggy_bank_saved}
                 onWithdrawFund={handleWithdrawFund}
+                currencySymbol={state.settings.currency_symbol}
               />
             )}
             {isSettingsOpen && state.settings && (
@@ -495,6 +537,12 @@ export default function App() {
                 onReset={handleReset}
                 isDarkMode={isDarkMode}
                 onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+                settings={state.settings}
+                transactions={state.transactions}
+                onSaveSettings={(s) => {
+                  saveSettings(s);
+                  setState(calculateState(getSettings(), getTransactions()));
+                }}
               />
             )}
           </AnimatePresence>
