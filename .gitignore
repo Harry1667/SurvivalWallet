@@ -14,3 +14,20 @@ survival-wallet-dist.zip
 01-dev/001-deploy-docs/
 01-dev/10-deploy-docs/
 .gstack/
+
+# === 機密 / 本機工具（不上公開 repo）===
+03-Skills/
+02-web/database/
+*.sqlite
+*.db
+# ai-collab 協作筆記（本機用）
+AI_BRIDGE.md
+CHANGE_LOCK.md
+CLAUDE_NOTES.md
+CODEX_NOTES.md
+GEMINI_REVIEW.md
+BUILD_REPORT.md
+DECISIONS.md
+TODO_FOR_CLAUDE.md
+TODO_FOR_CODEX.md
+TODO_FOR_GEMINI.md

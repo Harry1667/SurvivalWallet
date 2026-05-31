@@ -1,313 +1,134 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Download, Swords, Sparkles, Globe, Info } from 'lucide-react';
-import type { UserSettings, Transaction } from '../types';
+import { X, Plus, Moon, Sun } from 'lucide-react';
+import type { UserSettings, FixedExpense } from '../types';
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
-interface Props {
-  isOpen: boolean;
-  onClose: () => void;
-  onSimulateDay?: () => void;
-  onReset?: () => void;
-  isDarkMode: boolean;
-  onToggleDarkMode: () => void;
-  settings: UserSettings;
-  transactions: Transaction[];
-  onSaveSettings: (s: Partial<UserSettings>) => void;
+function cn(...inputs: (string | undefined | null | false)[]) {
+  return twMerge(clsx(inputs));
 }
 
-const CURRENCY_OPTIONS = [
-  { label: '$', value: '$' },
-  { label: 'NT$', value: 'NT$' },
-  { label: '¥', value: '¥' },
-  { label: '€', value: '€' },
-  { label: '£', value: '£' },
-  { label: '₩', value: '₩' },
-];
+interface Props {
+  settings: UserSettings;
+  onClose: () => void;
+  onSave: (settings: UserSettings) => Promise<void>;
+  isDarkMode: boolean;
+  onToggleDark: () => void;
+  onReset: () => void;
+}
 
-const WEEK_DAYS = [
-  { label: '日', value: 0 },
-  { label: '一', value: 1 },
-  { label: '二', value: 2 },
-  { label: '三', value: 3 },
-  { label: '四', value: 4 },
-  { label: '五', value: 5 },
-  { label: '六', value: 6 },
-];
+export const SettingsModal = ({ settings, onClose, onSave, isDarkMode, onToggleDark, onReset }: Props) => {
+  const [income, setIncome] = useState(String(settings.monthly_income || ''));
+  const [fixed, setFixed] = useState<FixedExpense[]>(settings.fixed_expenses.length ? settings.fixed_expenses : []);
+  const [currency, setCurrency] = useState(settings.currency_symbol || '$');
+  const [categories, setCategories] = useState<string[]>(settings.categories);
+  const [newCat, setNewCat] = useState('');
 
-const APP_VERSION = '1.2.0';
+  const updateFixed = (i: number, patch: Partial<FixedExpense>) => setFixed(p => p.map((f, idx) => idx === i ? { ...f, ...patch } : f));
+  const addFixed = () => setFixed(p => [...p, { name: '', amount: 0 }]);
+  const removeFixed = (i: number) => setFixed(p => p.filter((_, idx) => idx !== i));
 
-export const SettingsModal = ({
-  isOpen, onClose, onSimulateDay, onReset,
-  isDarkMode, onToggleDarkMode,
-  settings, transactions, onSaveSettings,
-}: Props) => {
-  const [luxuryTaxRate, setLuxuryTaxRate] = useState(settings.luxury_tax_rate);
-  const [overspendThreshold, setOverspendThreshold] = useState(settings.overspend_threshold);
-  const [streakRewardRate, setStreakRewardRate] = useState(settings.streak_reward_rate);
-  const [currencySymbol, setCurrencySymbol] = useState(settings.currency_symbol);
-  const [weekStartDay, setWeekStartDay] = useState(settings.week_start_day);
-  const [hasChanges, setHasChanges] = useState(false);
-
-  if (!isOpen) return null;
-
-  const markChanged = () => setHasChanges(true);
-
-  const handleSave = () => {
-    onSaveSettings({
-      luxury_tax_rate: luxuryTaxRate,
-      overspend_threshold: overspendThreshold,
-      streak_reward_rate: streakRewardRate,
-      currency_symbol: currencySymbol,
-      week_start_day: weekStartDay,
-    });
-    setHasChanges(false);
+  const addCat = () => {
+    const c = newCat.trim();
+    if (c && !categories.includes(c)) setCategories(p => [...p, c]);
+    setNewCat('');
   };
+  const removeCat = (c: string) => setCategories(p => p.filter(x => x !== c));
 
-  // 匯出 CSV
-  const handleExportCSV = () => {
-    if (transactions.length === 0) {
-      alert('目前沒有任何交易紀錄可匯出。');
-      return;
-    }
-
-    const headers = ['日期', '時間', '類型', '分類', '品項', '金額', '緊急', '模式'];
-    const rows = transactions.map(t => {
-      const d = new Date(t.created_at);
-      const date = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
-      const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-      return [
-        date,
-        time,
-        t.transaction_type === 'income' ? '收入' : '支出',
-        t.category,
-        `"${(t.item || '').replace(/"/g, '""')}"`,
-        t.amount,
-        t.is_emergency ? '是' : '否',
-        t.entry_mode === 'normal' ? '一般' : t.entry_mode === 'backfill' ? '補記' : '歷史',
-      ].join(',');
+  const handleSave = async () => {
+    await onSave({
+      monthly_income: Number(income) || 0,
+      fixed_expenses: fixed.filter(f => f.name.trim() && Number(f.amount) > 0).map(f => ({ name: f.name.trim(), amount: Number(f.amount) })),
+      currency_symbol: currency.trim() || '$',
+      categories: categories.length ? categories : settings.categories,
     });
-
-    const bom = '\uFEFF';
-    const csv = bom + [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const now = new Date();
-    a.download = `survival-wallet-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[55] flex items-end sm:items-center justify-center p-4 sm:p-6">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      <motion.div
-        initial={{ opacity: 0, y: 100, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 100, scale: 0.95 }}
-        className="relative bg-white dark:bg-[#1e293b] rounded-[2.5rem] p-6 w-full max-w-sm shadow-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto safe-area-inset-bottom"
+        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        className="relative w-full max-w-md bg-white dark:bg-[#1e293b] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-2rem)]"
       >
-        {/* Header */}
-        <div className="flex justify-between items-center px-2">
-          <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">系統設定</h2>
-          <button onClick={onClose} className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-400 rounded-full hover:bg-slate-200 active:scale-95 transition-all">
-            <X size={20} />
-          </button>
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 dark:border-[#334155]">
+          <h2 className="font-black text-lg text-slate-800 dark:text-white">設定</h2>
+          <button aria-label="關閉" onClick={onClose} className="p-2 bg-slate-100 dark:bg-[#0f172a] rounded-full text-slate-400"><X size={20} /></button>
         </div>
 
-        {/* ── 遊戲化參數 ── */}
-        <SectionHeader icon={<Swords size={16} />} title="遊戲化參數" />
-
-        <SliderSetting
-          label="奢侈稅稅率"
-          value={luxuryTaxRate}
-          min={0} max={0.5} step={0.05}
-          format={(v) => `${Math.round(v * 100)}%`}
-          onChange={(v) => { setLuxuryTaxRate(v); markChanged(); }}
-          description="快樂水/娛樂消費自動扣稅存入撲滿"
-        />
-        <SliderSetting
-          label="嚴重超支門檻"
-          value={overspendThreshold}
-          min={0.1} max={1} step={0.1}
-          format={(v) => `${Math.round(v * 100)}%`}
-          onChange={(v) => { setOverspendThreshold(v); markChanged(); }}
-          description="超過今日配額此比例才觸發罰金"
-        />
-        <SliderSetting
-          label="連擊獎勵倍率"
-          value={streakRewardRate}
-          min={0} max={0.3} step={0.05}
-          format={(v) => `${Math.round(v * 100)}%`}
-          onChange={(v) => { setStreakRewardRate(v); markChanged(); }}
-          description="每 7 天連擊，獎勵 = 7日配額 × 此倍率"
-        />
-
-        {/* 儲存按鈕 */}
-        {hasChanges && (
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            onClick={handleSave}
-            className="w-full py-3 text-sm font-black text-white bg-blue-500 rounded-full active:scale-95 transition-all shadow-lg shadow-blue-500/30"
-          >
-            儲存變更
-          </motion.button>
-        )}
-
-        {/* ── 體驗設定 ── */}
-        <SectionHeader icon={<Globe size={16} />} title="體驗設定" />
-
-        {/* 幣別符號 */}
-        <div className="px-2">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">幣別符號</span>
-          <div className="flex gap-2 mt-2 flex-wrap">
-            {CURRENCY_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => { setCurrencySymbol(opt.value); markChanged(); }}
-                className={`px-4 py-2 rounded-full text-sm font-bold border transition-all active:scale-95 ${
-                  currencySymbol === opt.value
-                    ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-200 dark:text-slate-900 dark:border-slate-200'
-                    : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 每週起始日 */}
-        <div className="px-2">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">每週起始日</span>
-          <div className="flex gap-1.5 mt-2">
-            {WEEK_DAYS.map(d => (
-              <button
-                key={d.value}
-                onClick={() => { setWeekStartDay(d.value); markChanged(); }}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 ${
-                  weekStartDay === d.value
-                    ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-200 dark:text-slate-900 dark:border-slate-200'
-                    : 'bg-white text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600'
-                }`}
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 黑暗模式 */}
-        <div className="border-t border-slate-100 dark:border-slate-700 pt-3 flex items-center justify-between px-2">
-          <span className="text-sm font-bold text-slate-700 dark:text-slate-300">黑暗模式</span>
-          <button
-            onClick={onToggleDarkMode}
-            className="w-14 h-8 rounded-full transition-colors relative flex items-center px-1 shadow-inner bg-slate-200 dark:bg-[#334155]"
-          >
-            <div className={`w-6 h-6 rounded-full bg-white dark:bg-[#e2e8f0] shadow-sm flex items-center justify-center transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}>
-              <span className="text-[10px]">{isDarkMode ? '🌙' : '☀️'}</span>
+        <div className="p-6 space-y-7 pb-8 overflow-y-auto">
+          {/* Income */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">月收入</label>
+            <div className="flex items-baseline gap-2 border-b-2 border-slate-100 focus-within:border-slate-900">
+              <span className="text-xl font-black text-slate-300">{currency}</span>
+              <input type="number" inputMode="numeric" value={income} onChange={e => setIncome(e.target.value)}
+                className="w-full text-2xl font-black text-slate-900 dark:text-white outline-none p-1 bg-transparent" />
             </div>
+          </div>
+
+          {/* Fixed expenses */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">每月固定支出</label>
+              <button type="button" onClick={addFixed} className="flex items-center gap-1 text-[11px] font-black text-slate-500 hover:text-slate-900"><Plus size={13} strokeWidth={3} /> 新增</button>
+            </div>
+            {fixed.map((f, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input type="text" value={f.name} onChange={e => updateFixed(i, { name: e.target.value })}
+                  className="flex-1 py-2 px-3 text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-[#0f172a] rounded-xl outline-none" placeholder="項目" />
+                <input type="number" inputMode="numeric" value={f.amount || ''} onChange={e => updateFixed(i, { amount: Number(e.target.value) })}
+                  className="w-24 py-2 px-3 text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-[#0f172a] rounded-xl outline-none" placeholder="金額" />
+                <button type="button" onClick={() => removeFixed(i)} className="p-2 text-slate-300 hover:text-red-500" aria-label="移除"><X size={16} /></button>
+              </div>
+            ))}
+          </div>
+
+          {/* Categories */}
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">支出分類</label>
+            <div className="flex flex-wrap gap-2">
+              {categories.map(c => (
+                <span key={c} className="flex items-center gap-1 bg-slate-100 dark:bg-[#0f172a] text-slate-700 dark:text-slate-200 text-sm font-bold px-3 py-1.5 rounded-full">
+                  {c}
+                  <button onClick={() => removeCat(c)} className="text-slate-400 hover:text-red-500" aria-label={`移除 ${c}`}><X size={13} /></button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input type="text" value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addCat(); }}
+                className="flex-1 py-2 px-3 text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-[#0f172a] rounded-xl outline-none" placeholder="新增分類" />
+              <button onClick={addCat} className="px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black text-sm">加入</button>
+            </div>
+          </div>
+
+          {/* Currency + dark mode */}
+          <div className="flex gap-3">
+            <div className="flex-1 space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">幣別符號</label>
+              <input type="text" value={currency} onChange={e => setCurrency(e.target.value)} maxLength={3}
+                className="w-full py-2 px-3 text-lg font-black text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-[#0f172a] rounded-xl outline-none" />
+            </div>
+            <button onClick={onToggleDark}
+              className="self-end flex items-center gap-2 py-2.5 px-4 rounded-xl bg-slate-50 dark:bg-[#0f172a] font-bold text-sm text-slate-700 dark:text-slate-200">
+              {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+              {isDarkMode ? '淺色' : '深色'}
+            </button>
+          </div>
+
+          <button onClick={handleSave}
+            className="w-full py-4 rounded-2xl font-black text-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 active:scale-95 transition-all">儲存設定</button>
+
+          <button onClick={() => { if (confirm('確定清空所有資料並重置？此動作無法復原。')) onReset(); }}
+            className={cn('w-full py-3 rounded-2xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-950/40 active:scale-95 transition-all')}>
+            清空所有資料並重置
           </button>
-        </div>
-
-        {/* ── 資料管理 ── */}
-        <SectionHeader icon={<Download size={16} />} title="資料管理" />
-
-        <button
-          onClick={handleExportCSV}
-          className="w-full py-3 text-sm font-bold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-700 rounded-full border border-slate-200 dark:border-slate-600 active:scale-95 transition-all flex items-center justify-center gap-2"
-        >
-          <Download size={16} />
-          匯出交易紀錄 (CSV)
-        </button>
-
-        {/* ── Danger Zone ── */}
-        <SectionHeader icon={<Sparkles size={16} />} title="開發工具" />
-
-        <div className="space-y-3">
-          {onSimulateDay && (
-            <button
-              onClick={() => { onSimulateDay(); onClose(); }}
-              className="w-full py-3 text-sm font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700 rounded-full border border-slate-200 dark:border-slate-600 active:scale-95 transition-all"
-            >
-              🌙 模擬換日結算
-            </button>
-          )}
-          {onReset && (
-            <button
-              onClick={() => { if (confirm('確定要重置所有設定與費用記錄？此動作不可還原。')) { onReset(); } }}
-              className="w-full py-3 text-sm font-bold text-red-500 bg-red-50 dark:bg-red-900/20 rounded-full border border-red-100 dark:border-red-800 active:scale-95 transition-all"
-            >
-              ⚠️ 重置所有資料
-            </button>
-          )}
-        </div>
-
-        {/* ── 關於 ── */}
-        <SectionHeader icon={<Info size={16} />} title="關於" />
-        <div className="px-2 pb-2 space-y-1">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500 dark:text-slate-400 font-medium">版本</span>
-            <span className="font-black text-slate-700 dark:text-slate-300">v{APP_VERSION}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500 dark:text-slate-400 font-medium">交易筆數</span>
-            <span className="font-black text-slate-700 dark:text-slate-300">{transactions.length}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500 dark:text-slate-400 font-medium">累計完美日</span>
-            <span className="font-black text-slate-700 dark:text-slate-300">{settings.total_perfect_days} 天</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500 dark:text-slate-400 font-medium">最長連擊</span>
-            <span className="font-black text-slate-700 dark:text-slate-300">{settings.longest_streak} 天</span>
-          </div>
         </div>
       </motion.div>
     </div>
   );
 };
-
-// ── 子元件 ──
-
-function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }) {
-  return (
-    <div className="flex items-center gap-2 px-2 pt-2 border-t border-slate-100 dark:border-slate-700">
-      <span className="text-slate-400 dark:text-slate-500">{icon}</span>
-      <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{title}</span>
-    </div>
-  );
-}
-
-function SliderSetting({
-  label, value, min, max, step, format, onChange, description,
-}: {
-  label: string; value: number; min: number; max: number; step: number;
-  format: (v: number) => string; onChange: (v: number) => void; description: string;
-}) {
-  return (
-    <div className="px-2 space-y-1.5">
-      <div className="flex justify-between items-center">
-        <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{label}</span>
-        <span className="text-sm font-black text-blue-600 dark:text-blue-400 tabular-nums">{format(value)}</span>
-      </div>
-      <input
-        type="range"
-        min={min} max={max} step={step}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full h-2 rounded-full appearance-none bg-slate-200 dark:bg-slate-600 accent-blue-500 cursor-pointer"
-      />
-      <p className="text-[11px] text-slate-400 dark:text-slate-500">{description}</p>
-    </div>
-  );
-}

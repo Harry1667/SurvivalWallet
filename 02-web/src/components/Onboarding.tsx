@@ -1,149 +1,113 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Wallet, PiggyBank, Target, Calendar, ArrowRight } from 'lucide-react';
-import type { UserSettings } from '../types';
+import { Wallet, Plus, X, ArrowRight } from 'lucide-react';
+import type { UserSettings, FixedExpense } from '../types';
+import { DEFAULT_CATEGORIES } from '../types';
 
 interface Props {
   onComplete: (settings: UserSettings) => void;
 }
 
 export const Onboarding = ({ onComplete }: Props) => {
-  const [formData, setFormData] = useState({
-    total_budget: '',
-    fixed_expenses: '',
-    piggy_bank_name: '東京機票',
-    piggy_bank_goal: ''
-  });
+  const [income, setIncome] = useState('');
+  const [fixed, setFixed] = useState<FixedExpense[]>([
+    { name: '健身房', amount: 0 },
+    { name: '水電', amount: 0 },
+  ]);
+
+  const updateFixed = (i: number, patch: Partial<FixedExpense>) => {
+    setFixed(prev => prev.map((f, idx) => (idx === i ? { ...f, ...patch } : f)));
+  };
+  const addFixed = () => setFixed(prev => [...prev, { name: '', amount: 0 }]);
+  const removeFixed = (i: number) => setFixed(prev => prev.filter((_, idx) => idx !== i));
+
+  const fixedTotal = fixed.reduce((a, f) => a + (Number(f.amount) || 0), 0);
+  const incomeNum = Number(income) || 0;
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const dailyPreview = Math.max(0, Math.floor((incomeNum - fixedTotal) / daysInMonth));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const total = Number(formData.total_budget);
-    const fixed = Number(formData.fixed_expenses);
-    const goal = Number(formData.piggy_bank_goal);
-
-    if (total <= 0 || fixed < 0 || !formData.piggy_bank_name || goal <= 0) {
-      alert('請填寫完整資訊');
-      return;
-    }
-
-    const net = total - fixed;
-    const now = new Date();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const elapsedDays = now.getDate() - 1;
-    const remainingDays = Math.max(1, daysInMonth - elapsedDays);
-    const dailyBase = Math.max(0, net / remainingDays);
-
-    const settings: UserSettings = {
-      total_budget: total,
-      fixed_expenses: fixed,
-      daily_base_budget: Math.floor(dailyBase),
-      piggy_bank_name: formData.piggy_bank_name,
-      piggy_bank_goal: goal,
-      piggy_bank_saved: 0,
-      current_streak: 0,
-      longest_streak: 0,
-      total_perfect_days: 0,
-      last_login_date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
-      taxed_categories: [],
-      luxury_tax_rate: 0.2,
-      overspend_threshold: 0.5,
-      streak_reward_rate: 0.1,
+    if (incomeNum <= 0) { alert('請輸入月收入'); return; }
+    onComplete({
+      monthly_income: incomeNum,
+      fixed_expenses: fixed.filter(f => f.name.trim() && Number(f.amount) > 0).map(f => ({ name: f.name.trim(), amount: Number(f.amount) })),
       currency_symbol: '$',
-      week_start_day: 1,
-    };
-
-    console.log('🏁 啟動生存計畫:', settings);
-    onComplete(settings);
+      categories: DEFAULT_CATEGORIES,
+    });
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
-      <motion.div 
+    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 dark:bg-[#0f172a]">
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl space-y-10 border border-slate-100"
+        className="w-full max-w-md bg-white dark:bg-[#1e293b] rounded-[2.5rem] p-9 shadow-2xl space-y-8 border border-slate-100 dark:border-[#334155]"
       >
         <div className="text-center space-y-3">
-          <div className="mx-auto w-20 h-20 bg-slate-900 rounded-[2rem] flex items-center justify-center text-white shadow-xl shadow-slate-200">
+          <div className="mx-auto w-20 h-20 bg-slate-900 dark:bg-white rounded-[2rem] flex items-center justify-center text-white dark:text-slate-900 shadow-xl">
             <Wallet size={40} />
           </div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">生存錢包</h1>
-          <p className="text-slate-500 font-bold">設定你的生存規則與夢想</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">每日記帳</h1>
+          <p className="text-slate-500 font-bold text-sm">設定月收入與固定支出，算出每天能花多少</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="space-y-6">
-            <div className="space-y-2 group">
-              <div className="flex items-center gap-2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
-                <Wallet size={16} />
-                <label className="text-[10px] font-black uppercase tracking-widest">每月總生活費 (Total Budget)</label>
-              </div>
-              <input 
-                type="number"
-                inputMode="numeric"
-                required
-                value={formData.total_budget}
-                onChange={e => setFormData({...formData, total_budget: e.target.value})}
-                className="w-full text-2xl font-black text-slate-900 border-b-2 border-slate-100 focus:border-slate-900 outline-none p-2 bg-transparent transition-all placeholder:text-slate-100"
-                placeholder="例如: 15000"
-              />
-            </div>
-
-            <div className="space-y-2 group">
-              <div className="flex items-center gap-2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
-                <Calendar size={16} />
-                <label className="text-[10px] font-black uppercase tracking-widest">每月固定支出 (Fixed Expenses)</label>
-              </div>
-              <input 
-                type="number"
-                inputMode="numeric"
-                required
-                value={formData.fixed_expenses}
-                onChange={e => setFormData({...formData, fixed_expenses: e.target.value})}
-                className="w-full text-2xl font-black text-slate-900 border-b-2 border-slate-100 focus:border-slate-900 outline-none p-2 bg-transparent transition-all placeholder:text-slate-100"
-                placeholder="例如: 5000"
-              />
-            </div>
-
-            <div className="h-0.5 bg-slate-50 rounded-full" />
-
-            <div className="space-y-2 group">
-              <div className="flex items-center gap-2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
-                <Target size={16} />
-                <label className="text-[10px] font-black uppercase tracking-widest">夢想撲滿名稱 (Goal Name)</label>
-              </div>
-              <input 
-                type="text"
-                required
-                value={formData.piggy_bank_name}
-                onChange={e => setFormData({...formData, piggy_bank_name: e.target.value})}
-                className="w-full text-2xl font-black text-slate-900 border-b-2 border-slate-100 focus:border-slate-900 outline-none p-2 bg-transparent transition-all placeholder:text-slate-100"
-                placeholder="例如: 東京機票"
-              />
-            </div>
-
-            <div className="space-y-2 group">
-              <div className="flex items-center gap-2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
-                <PiggyBank size={16} />
-                <label className="text-[10px] font-black uppercase tracking-widest">撲滿目標金額 (Goal Amount)</label>
-              </div>
-              <input 
-                type="number"
-                inputMode="numeric"
-                required
-                value={formData.piggy_bank_goal}
-                onChange={e => setFormData({...formData, piggy_bank_goal: e.target.value})}
-                className="w-full text-2xl font-black text-slate-900 border-b-2 border-slate-100 focus:border-slate-900 outline-none p-2 bg-transparent transition-all placeholder:text-slate-100"
-                placeholder="例如: 20000"
+        <form onSubmit={handleSubmit} className="space-y-7">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">這個月的收入</label>
+            <div className="flex items-baseline gap-2 border-b-2 border-slate-100 focus-within:border-slate-900 transition-colors">
+              <span className="text-2xl font-black text-slate-300">$</span>
+              <input
+                type="number" inputMode="numeric" autoFocus required
+                value={income} onChange={e => setIncome(e.target.value)}
+                className="w-full text-3xl font-black text-slate-900 dark:text-white outline-none p-1 bg-transparent placeholder:text-slate-200"
+                placeholder="12000"
               />
             </div>
           </div>
 
-          <button 
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">每月固定支出</label>
+              <button type="button" onClick={addFixed} className="flex items-center gap-1 text-[11px] font-black text-slate-500 hover:text-slate-900">
+                <Plus size={13} strokeWidth={3} /> 新增
+              </button>
+            </div>
+            <div className="space-y-2">
+              {fixed.map((f, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="text" value={f.name} onChange={e => updateFixed(i, { name: e.target.value })}
+                    className="flex-1 py-2 px-3 text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-[#0f172a] rounded-xl outline-none"
+                    placeholder="項目，如 健身房"
+                  />
+                  <input
+                    type="number" inputMode="numeric" value={f.amount || ''} onChange={e => updateFixed(i, { amount: Number(e.target.value) })}
+                    className="w-24 py-2 px-3 text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-[#0f172a] rounded-xl outline-none"
+                    placeholder="金額"
+                  />
+                  <button type="button" onClick={() => removeFixed(i)} className="p-2 text-slate-300 hover:text-red-500" aria-label="移除">
+                    <X size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-slate-50 dark:bg-[#0f172a] rounded-2xl p-4 text-center">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">每日可花</p>
+            <p className="text-3xl font-black text-slate-900 dark:text-white">${dailyPreview}</p>
+            <p className="text-[11px] font-bold text-slate-400 mt-1">
+              ({incomeNum} − {fixedTotal}) ÷ {daysInMonth} 天
+            </p>
+          </div>
+
+          <button
             type="submit"
-            className="w-full py-5 bg-slate-900 text-white rounded-[2rem] font-black text-2xl shadow-xl shadow-slate-200 flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all"
+            className="w-full py-5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[2rem] font-black text-xl shadow-xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all"
           >
-            開始生存 <ArrowRight size={24} />
+            開始記帳 <ArrowRight size={24} />
           </button>
         </form>
       </motion.div>
